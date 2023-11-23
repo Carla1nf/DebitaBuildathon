@@ -6,6 +6,10 @@ import "./DebitaV2Offers.sol";
 import "./DebitaV2Loan.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
+interface IOwnerships {
+    function mint(address to) external returns (uint256);
+}
+
 contract DebitaV2Factory is ReentrancyGuard {
     event OfferCreated(
         address indexed owner,
@@ -14,32 +18,32 @@ contract DebitaV2Factory is ReentrancyGuard {
     );
 
     event LoanCreated(
-        uint  lenderId,
-        uint  borrowerId,
         address indexed lendingAddress,
-        address indexed loanAddress
+        address indexed loanAddress,
+        uint lenderId,
+        uint borrowerId
     );
 
+    address owner;
+    address ownershipAddress;
     mapping(address => address) public voterEachveNft;
     mapping(address => bool) public isSenderAnOffer;
 
     modifier onlyOffers() {
-        require(isSenderAnOffer[msg.sender], "Only offers can call this function.");
+        require(
+            isSenderAnOffer[msg.sender],
+            "Only offers can call this function."
+        );
         _;
     }
 
-    function transferAssets(
-        address from,
-        address to,
-        address assetAddress,
-        uint256 assetAmount,
-        bool isNFT
-    ) internal {
-        if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, assetAmount);
-        } else {
-            ERC20(assetAddress).transferFrom(from, to, assetAmount);
-        }
+    modifier onlyOwner() {
+        require(owner == msg.sender, "Only offers can call this function.");
+        _;
+    }
+
+    constructor() {
+        owner = msg.sender;
     }
 
     function createOfferV2(
@@ -106,24 +110,20 @@ contract DebitaV2Factory is ReentrancyGuard {
     }
 
     function createLoanV2(
-        uint8[2] calldata nftIDS,
+        uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
         bool isLendingNFT,
         bool isCollateralNFT,
-        uint8 _interestRate,
+        uint16 _interestRate,
         uint8 _paymentCount,
         uint32 _timelap,
         uint256 _interestAmount
-    ) public onlyOffers() nonReentrant() returns(address) {
-        
+    ) public onlyOffers nonReentrant returns (address) {
         DebitaV2Loan newLoan = new DebitaV2Loan(
-            nftIDS[0],
-            nftIDS[1],
-            assetAddresses[0],
-            assetAddresses[1],
-            assetAmounts[0],
-            assetAmounts[1],
+            nftIDS,
+            assetAddresses,
+            assetAmounts,
             isLendingNFT,
             isCollateralNFT,
             _interestRate,
@@ -132,12 +132,41 @@ contract DebitaV2Factory is ReentrancyGuard {
             _timelap
         );
         emit LoanCreated(
-            nftIDS[0],
-            nftIDS[1],
             assetAddresses[0],
-            address(newLoan)
+            address(newLoan),
+            nftIDS[0],
+            nftIDS[1]
         );
-        
+
         return address(newLoan);
-     }
+    }
+
+    function transferAssets(
+        address from,
+        address to,
+        address assetAddress,
+        uint256 assetAmount,
+        bool isNFT
+    ) internal {
+        if (isNFT) {
+            ERC721(assetAddress).transferFrom(from, to, assetAmount);
+        } else {
+            ERC20(assetAddress).transferFrom(from, to, assetAmount);
+        }
+    }
+
+    // owners[0] = lender, owners[1] = borrower
+    function mintOwnerships(
+        address[2] calldata owners
+    ) external onlyOffers returns (uint[2] memory) {
+        uint[2] memory nftIDS;
+        for (uint i = 0; i < 2; i++) {
+            nftIDS[i] = IOwnerships(ownershipAddress).mint(owners[i]);
+        }
+        return nftIDS;
+    }
+
+    function setOwnershipAddress(address ownershipAdd) public onlyOwner {
+        ownershipAddress = ownershipAdd;
+    }
 }

@@ -5,13 +5,17 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 
 interface IDebitaFactoryV2 {
+    function mintOwnerships(
+        address[2] calldata owners
+    ) external returns (uint[2] memory);
+
     function createLoanV2(
-        uint8[2] calldata nftIDS,
+        uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
         bool isLendingNFT,
         bool isCollateralNFT,
-        uint8 _interestRate,
+        uint16 _interestRate,
         uint8 _paymentCount,
         uint32 _timelap,
         uint256 _interestAmount
@@ -19,6 +23,13 @@ interface IDebitaFactoryV2 {
 }
 
 contract DebitaV2Offers is ReentrancyGuard {
+    event LoanCreated(
+        address indexed lendingAddress,
+        address indexed loanAddress,
+        uint lenderId,
+        uint borrowerId
+    );
+
     address immutable owner;
     bool immutable isLendingNFT; // If the lender is an NFT
     bool immutable isCollateralNFT; // If the collateral is an NFT
@@ -28,7 +39,7 @@ contract DebitaV2Offers is ReentrancyGuard {
     uint256 lendingAmount_AVAILABLE;
     uint256 immutable collateralAmount_TOTAL;
     uint256 collateralAmount_AVAILABLE;
-    uint8 immutable interest;
+    uint16 immutable interest;
     uint immutable interestAmount; // 0 if lending is an ERC-20
     uint8 immutable paymentCount;
     uint32 immutable timelap;
@@ -53,7 +64,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256 _collateralAmount,
         bool _isLendingNFT,
         bool _isCollateralNFT,
-        uint8 _interest,
+        uint16 _interest,
         uint _interestAmount,
         uint8 _paymentCount,
         uint32 _timelap,
@@ -131,8 +142,20 @@ contract DebitaV2Offers is ReentrancyGuard {
         if (lendingAmount_AVAILABLE == 0) {
             isActive = false;
         }
+
+        transferAssets(
+            msg.sender,
+            address(this),
+            collateralAddress,
+            collateralAmount,
+            isCollateralNFT
+        );
+        uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
+            [owner, msg.sender]
+        );
+
         address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
-            [0,0],
+            ids,
             [lendingAddress, collateralAddress],
             [lendingAmount, collateralAmount],
             isLendingNFT,
@@ -144,7 +167,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         );
         // Send collateral to loanAddress
         transferAssets(
-            msg.sender,
+            address(this),
             address(loanAddress),
             collateralAddress,
             collateralAmount,

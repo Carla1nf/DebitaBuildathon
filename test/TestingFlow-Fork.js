@@ -21,7 +21,9 @@ describe("Lock", function () {
   let holderEQUAL;
   let contractFactoryV2;
   let contractOffersV2;
+  let contractLoansV2;
   let contractERC20;
+  let ownerships;
   let contractERC721;
 
   this.beforeAll(async () => {
@@ -31,7 +33,11 @@ describe("Lock", function () {
     signerUser2 = signers[2];
   });
   beforeEach(async function () {
-    
+
+    // Deploy Contracts & Accounts
+    contractLoansV2 = await ethers.getContractFactory("DebitaV2Loan");
+    const owners = await ethers.getContractFactory("Ownerships");
+    ownerships = await owners.deploy();
     const factory = await ethers.getContractFactory("DebitaV2Factory");
     contractFactoryV2 = await factory.deploy();
     const erc20 = await ethers.getContractFactory("ERC20DEBITA");
@@ -40,12 +46,16 @@ describe("Lock", function () {
     const accounts = "0x89A7c531178CD6EB01994361eFc0d520a3a702C6";
     holderEQUAL = await ethers.getImpersonatedSigner(accounts);
 
+    // Setup
+    await ownerships.setDebitaContract(contractFactoryV2.target);
+    await contractFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
     await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
      
     await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))
 
     await contractERC20.connect(signerUser2).approve(contractFactoryV2.target, valueInWei(10000))
      
+
     
 
   });
@@ -103,10 +113,13 @@ describe("Lock", function () {
     const createdOfferAddress = receipt.logs[1].args[1];
 
     const offerContract = await contractOffersV2.attach(createdOfferAddress);
-    const tx_Accept =await offerContract.connect(holderEQUAL).acceptOfferAsBorrower(10);
+    const tx_Accept = await offerContract.connect(holderEQUAL).acceptOfferAsBorrower(10);
 
     const receipt_accept = await tx_Accept.wait()
-   console.log(receipt_accept.logs[1].args);
+  
+    const createdLoanAddress = receipt_accept.logs[3].args[1];
+    const loanContract = await contractLoansV2.attach(createdLoanAddress);
+    expect(await loanContract.lenderID()).to.be.equal(1);
     
  })
 });

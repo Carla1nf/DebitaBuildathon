@@ -2,8 +2,8 @@ pragma solidity ^0.8.0;
 
 contract DebitaV2Loan {
 
-    uint256 immutable lenderID;
-    uint256 immutable borrowerID;
+    uint256 public immutable lenderID;
+    uint256 public immutable borrowerID;
     address immutable lendingAddress;
     address immutable collateralAddress;
     uint256 immutable lendingAmount;
@@ -20,12 +20,9 @@ contract DebitaV2Loan {
     uint256  paidCount;
 
     constructor (
-        uint256 _lenderID,
-        uint256 _borrowerID,
-        address _lendingAddress,
-        address _collateralAddress,
-        uint256 _lendingAmount,
-        uint256 _collateralAmount,
+        uint[2] memory nftIDS,
+        address[2] memory assetAddresses,
+        uint256[2] memory assetAmounts,
         bool _isLendingNFT,
         bool _isCollateralNFT,
         uint _interestRate,
@@ -33,12 +30,12 @@ contract DebitaV2Loan {
         uint256 _paymentCount,
         uint _timelap
      )  {
-        lenderID = _lenderID;
-        borrowerID = _borrowerID;
-        lendingAddress = _lendingAddress;
-        collateralAddress = _collateralAddress;
-        lendingAmount = _lendingAmount;
-        collateralAmount = _collateralAmount;
+        lenderID = nftIDS[0];
+        borrowerID = nftIDS[1];
+        lendingAddress = assetAddresses[0];
+        collateralAddress = assetAddresses[1];
+        lendingAmount = assetAmounts[0];
+        collateralAmount = assetAmounts[1];
         isLendingNFT = _isLendingNFT;
         isCollateralNFT = _isCollateralNFT;
         interestRate = _interestRate;
