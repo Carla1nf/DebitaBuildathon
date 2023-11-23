@@ -13,8 +13,7 @@ interface IDebitaFactoryV2 {
         uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
-        bool isLendingNFT,
-        bool isCollateralNFT,
+        bool[2] calldata isAssetNFT,
         uint16 _interestRate,
         uint8 _paymentCount,
         uint32 _timelap,
@@ -89,19 +88,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         debitaFactoryV2 = msg.sender;
     }
 
-    function transferAssets(
-        address from,
-        address to,
-        address assetAddress,
-        uint256 assetAmount,
-        bool isNFT
-    ) internal {
-        if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, assetAmount);
-        } else {
-            ERC20(assetAddress).transfer(to, assetAmount);
-        }
-    }
+
 
     function cancelOffer() external onlyOwner onlyActive nonReentrant {
         isActive = false;
@@ -153,13 +140,12 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
             [owner, msg.sender]
         );
-
+        bool[2] memory assetNFT = [isLendingNFT, isCollateralNFT];
         address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
             ids,
             [lendingAddress, collateralAddress],
             [lendingAmount, collateralAmount],
-            isLendingNFT,
-            isCollateralNFT,
+            assetNFT,
             interest,
             paymentCount,
             timelap,
@@ -183,4 +169,19 @@ contract DebitaV2Offers is ReentrancyGuard {
             isLendingNFT
         );
     }
+
+        function transferAssets(
+        address from,
+        address to,
+        address assetAddress,
+        uint256 assetAmount,
+        bool isNFT
+    ) internal {
+        if (isNFT) {
+            ERC721(assetAddress).transferFrom(from, to, assetAmount);
+        } else {
+            ERC20(assetAddress).transfer(to, assetAmount);
+        }
+    }
+    
 }

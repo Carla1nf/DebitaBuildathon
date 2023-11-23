@@ -6,9 +6,6 @@ import "./DebitaV2Offers.sol";
 import "./DebitaV2Loan.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-interface IOwnerships {
-    function mint(address to) external returns (uint256);
-}
 
 contract DebitaV2Factory is ReentrancyGuard {
     event OfferCreated(
@@ -25,6 +22,7 @@ contract DebitaV2Factory is ReentrancyGuard {
     );
 
     address owner;
+    address public feeAddress;
     address ownershipAddress;
     mapping(address => address) public voterEachveNft;
     mapping(address => bool) public isSenderAnOffer;
@@ -46,6 +44,7 @@ contract DebitaV2Factory is ReentrancyGuard {
         owner = msg.sender;
     }
 
+    // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
     function createOfferV2(
         address lendingAddress,
         address collateralAddress,
@@ -113,8 +112,7 @@ contract DebitaV2Factory is ReentrancyGuard {
         uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
-        bool isLendingNFT,
-        bool isCollateralNFT,
+        bool[2] calldata isAssetNFT,
         uint16 _interestRate,
         uint8 _paymentCount,
         uint32 _timelap,
@@ -124,12 +122,13 @@ contract DebitaV2Factory is ReentrancyGuard {
             nftIDS,
             assetAddresses,
             assetAmounts,
-            isLendingNFT,
-            isCollateralNFT,
+            isAssetNFT,
             _interestRate,
             _interestAmount,
             _paymentCount,
-            _timelap
+            _timelap,
+            ownershipAddress,
+            address(this)
         );
         emit LoanCreated(
             assetAddresses[0],

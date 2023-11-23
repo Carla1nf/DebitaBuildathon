@@ -119,7 +119,7 @@ describe("Lock", function () {
   
     const createdLoanAddress = receipt_accept.logs[3].args[1];
     const loanContract = await contractLoansV2.attach(createdLoanAddress);
-    expect(await loanContract.lenderID()).to.be.equal(1);
+
     
  })
 });

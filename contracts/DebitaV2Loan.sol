@@ -1,48 +1,136 @@
 pragma solidity ^0.8.0;
 
-contract DebitaV2Loan {
 
-    uint256 public immutable lenderID;
-    uint256 public immutable borrowerID;
-    address immutable lendingAddress;
-    address immutable collateralAddress;
-    uint256 immutable lendingAmount;
-    uint256 immutable collateralAmount;
-    bool immutable isLendingNFT;
-    bool immutable isCollateralNFT;
-    uint immutable interestRate;
-    uint immutable interestAmount;
-    uint256 immutable paymentCount;
-    uint immutable timelap;
-    uint nextDeadLine;
-    uint totalDeadLine;
-    bool executed;
-    uint256  paidCount;
+import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 
-    constructor (
+interface IOwnerships {
+
+    function ownerOf(uint id) external returns (address);
+    function mint(address to) external returns (uint256);
+}
+
+interface IDebitaFactory {
+    function feeAddress() external returns (address);
+}
+
+contract DebitaV2Loan is ReentrancyGuard {
+    
+    event debtPaid(
+        uint indexed paymentCount,
+        uint indexed paymentPaid
+    );
+
+
+    struct LoanData {
+        uint[2] IDS; // 0: Lender, 1: Borrower
+        address[2] assetAddresses; // 0: Lending, 1: Collateral
+        uint256[2] assetAmounts; // 0: Lending, 1: Collateral
+        bool[2] isAssetNFT; // 0: Lending, 1: Collateral
+        uint256 interestAmount_Lending_NFT; // only if the lending is an NFT
+        uint256 timelap; // timelap on each payment
+        uint8 paymentCount;
+        uint8 paymentsPaid;
+        uint256 paymentAmount;
+        uint256 deadline;
+        uint256 deadlineNext;
+        bool executed; // if collateral claimed
+    }
+
+    LoanData storage_loanInfo;
+    address ownershipContract;
+    address debitaFactoryV2;
+    uint constant interestFEE = 6;
+    uint claimableAmount;
+    address immutable public feeAddress;
+
+    // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
+    constructor(
         uint[2] memory nftIDS,
         address[2] memory assetAddresses,
         uint256[2] memory assetAmounts,
-        bool _isLendingNFT,
-        bool _isCollateralNFT,
+        bool[2] memory _isAssetNFT,
         uint _interestRate,
         uint _interestAmount,
-        uint256 _paymentCount,
-        uint _timelap
-     )  {
-        lenderID = nftIDS[0];
-        borrowerID = nftIDS[1];
-        lendingAddress = assetAddresses[0];
-        collateralAddress = assetAddresses[1];
-        lendingAmount = assetAmounts[0];
-        collateralAmount = assetAmounts[1];
-        isLendingNFT = _isLendingNFT;
-        isCollateralNFT = _isCollateralNFT;
-        interestRate = _interestRate;
-        interestAmount = _interestAmount;
-        paymentCount = _paymentCount;
-        timelap = _timelap;
-        nextDeadLine = block.timestamp + _timelap;
-        totalDeadLine = block.timestamp + (_timelap * _paymentCount);
+        uint8 _paymentCount,
+        uint _timelap,
+        address _ownershipContract,
+        address debitaV2
+    ) {
+        uint totalAmountToPay = assetAmounts[0] +
+            ((assetAmounts[0] * _interestRate) / 10000);
+
+        storage_loanInfo = LoanData({
+            IDS: nftIDS,
+            assetAddresses: assetAddresses,
+            assetAmounts: assetAmounts,
+            isAssetNFT: _isAssetNFT,
+            interestAmount_Lending_NFT: _interestAmount,
+            timelap: _timelap,
+            paymentCount: _paymentCount,
+            paymentsPaid: 0,
+            paymentAmount: totalAmountToPay / _paymentCount,
+            deadline: block.timestamp + (_timelap * _paymentCount),
+            deadlineNext: block.timestamp + _timelap,
+            executed: false
+        });
+        ownershipContract = _ownershipContract;
+        debitaFactoryV2 = debitaV2;
+    }
+
+    function payDebt() public nonReentrant() {
+
+        LoanData memory loan = storage_loanInfo;
+        IOwnerships ownerContract = IOwnerships(ownershipContract);
+
+        // Check conditions for valid debt payment
+        // Revert the transaction if any condition fail
+
+        // 1. Check if the loan final deadline has passed
+        // 2. Check if the sender is the owner of the collateral associated with the loan
+        // 3. Check if all payments have been made for the loan
+        // 4. Check if the loan collateral has already been executed
+        if (
+            loan.deadline < block.timestamp ||
+            ownerContract.ownerOf(loan.IDS[1]) != msg.sender ||
+            loan.paymentsPaid == loan.paymentCount ||
+            loan.executed == true
+        ) {
+            revert();
+        }
+        uint interestPerPayment = ((loan.paymentAmount * loan.paymentCount) - loan.assetAmounts[0]) / loan.paymentCount;
+        uint fee = (interestPerPayment * interestFEE) / 100;
+
+        claimableAmount += loan.paymentAmount - fee;
+        loan.paymentsPaid += 1;
+        loan.deadlineNext += loan.timelap;
+        storage_loanInfo = loan;
+
+        transferAssets(msg.sender, address(this), loan.assetAddresses[0], loan.paymentAmount, loan.isAssetNFT[0]);
+        address _feeAddress = IDebitaFactory(debitaFactoryV2).feeAddress();
+        transferAssets(address(this), _feeAddress, loan.assetAddresses[0], fee, loan.isAssetNFT[0]);
+
+
+
+        emit debtPaid(loan.paymentCount, loan.paymentsPaid);
+    }
+
+    function getLoanData() public view returns (LoanData memory) {
+        return storage_loanInfo;
+    }
+
+     function transferAssets(
+        address from,
+        address to,
+        address assetAddress,
+        uint256 assetAmount,
+        bool isNFT
+    ) internal {
+        if (isNFT) {
+            ERC721(assetAddress).transferFrom(from, to, assetAmount);
+        } else {
+            ERC20(assetAddress).transfer(to, assetAmount);
+        }
     }
 }
