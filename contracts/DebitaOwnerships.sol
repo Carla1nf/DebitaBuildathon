@@ -5,9 +5,12 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "./Base64.sol";
 
 
+
 // File contracts/NFT.sol
 
-
+interface IDEBITA {
+    function isSenderALoan(address sender) external returns (bool);
+}
 
 
 contract Ownerships is ERC721Enumerable {
@@ -45,5 +48,8 @@ contract Ownerships is ERC721Enumerable {
       DebitaContract = newContract;
     }
 
-
+    function burn(uint256 tokenId) public virtual   {
+      require(IDEBITA(DebitaContract).isSenderALoan(msg.sender), "Only loans can call this function.");
+     _burn(tokenId);
+    }
 }

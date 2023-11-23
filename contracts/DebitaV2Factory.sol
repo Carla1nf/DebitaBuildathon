@@ -26,6 +26,7 @@ contract DebitaV2Factory is ReentrancyGuard {
     address ownershipAddress;
     mapping(address => address) public voterEachveNft;
     mapping(address => bool) public isSenderAnOffer;
+    mapping(address => bool) public isSenderALoan;
 
     modifier onlyOffers() {
         require(
@@ -41,6 +42,7 @@ contract DebitaV2Factory is ReentrancyGuard {
     }
 
     constructor() {
+        feeAddress = msg.sender;
         owner = msg.sender;
     }
 
@@ -64,7 +66,9 @@ contract DebitaV2Factory is ReentrancyGuard {
             _paymentCount > 10 ||
             _paymentCount == 0 ||
             _paymentCount > assetAmounts[0] ||
-            _interestRate > 10000
+            _interestRate > 10000 ||
+            isAssetNFT[0] && _paymentCount > 1 || 
+            isAssetNFT[0] && assetAmounts[0] > 1 
         ) {
             revert();
         }
@@ -119,6 +123,7 @@ contract DebitaV2Factory is ReentrancyGuard {
             address(this),
             interest_address
         );
+        isSenderALoan[address(newLoan)] = true;
         emit LoanCreated(
             assetAddresses[0],
             address(newLoan),
