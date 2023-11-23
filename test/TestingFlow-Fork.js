@@ -13,7 +13,7 @@ function valueInWei(value) {
 describe("Lock", function () {
   const equalAddress = "0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6";
   //  before each
-
+  
 
   let owner;
   let signer1;
@@ -25,6 +25,18 @@ describe("Lock", function () {
   let contractERC20;
   let ownerships;
   let contractERC721;
+
+  function checkData(receipt, indexs, values) {
+    for (let i = 0; i < indexs.length; i++) {
+      if((typeof receipt[indexs[i]]) == "object"){
+        expect(receipt[indexs[i]][0]).to.be.equal(values[i][0]);
+        expect(receipt[indexs[i]][1]).to.be.equal(values[i][1]);
+        continue;
+      } else {
+        expect(receipt[indexs[i]]).to.be.equal(values[i]);
+      }
+    }
+  }
 
   this.beforeAll(async () => {
     const signers = await ethers.getSigners();
@@ -63,17 +75,15 @@ describe("Lock", function () {
 
  it("Create & Cancel Lending Offer  -- with $EQUAL (ERC-20)", async () => {
   const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
-    equalAddress,
-    equalAddress,
-    100,
-    100,
-    false,
-    false,
+    [equalAddress, equalAddress],
+    [100, 100],
+    [false, false],
     10,
     0,
     1,
     86400,
-    true
+    true,
+    equalAddress
     );
    // Get events
     const receipt = await tx.wait()
@@ -86,39 +96,52 @@ describe("Lock", function () {
 
     // Cancel and check if value gets back
     const offerContract = await contractOffersV2.attach(createdOfferAddress);
-    expect(await offerContract.isActive()).to.be.true;
+
+    const offerDataBefore = await offerContract.getOffersData();
+    checkData(offerDataBefore, [8], [true])
+
     await offerContract.connect(holderEQUAL).cancelOffer();
+
     expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(0);
-    expect(await offerContract.isActive()).to.be.false;
+    const offerData = await offerContract.getOffersData();
+    checkData(offerData, [8], [false])
     await expect( offerContract.connect(holderEQUAL).cancelOffer()).to.be.revertedWith("Offer is not active.");
 
  }),
 
  it("Accept Offer & Create loan -- with $EQUAL (ERC-20)", async () => {
   const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
-    equalAddress,
-    equalAddress,
-    100,
-    100,
-    false,
-    false,
+    [equalAddress, equalAddress],
+    [100, 100],
+    [false, false],
     10,
     0,
     1,
     86400,
-    true
+    true,
+    equalAddress
     );
    // Get events
     const receipt = await tx.wait()
     const createdOfferAddress = receipt.logs[1].args[1];
-
     const offerContract = await contractOffersV2.attach(createdOfferAddress);
-    const tx_Accept = await offerContract.connect(holderEQUAL).acceptOfferAsBorrower(10);
 
+    await contractERC20.connect(signerUser2).approve(offerContract.target, valueInWei(10000))
+
+    const tx_Accept = await offerContract.connect(signerUser2).acceptOfferAsBorrower(10);
+
+    const offerData = await offerContract.getOffersData();
     const receipt_accept = await tx_Accept.wait()
-  
+    
     const createdLoanAddress = receipt_accept.logs[3].args[1];
     const loanContract = await contractLoansV2.attach(createdLoanAddress);
+     
+    checkData(offerData, [1], [[99,99]]);
+    expect(await contractERC20.balanceOf(createdLoanAddress)).to.be.equal(1);
+    expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(99);
+
+    const loanData = await loanContract.getLoanData();
+    checkData(loanData, [0, 2, 4, 5, 6], [[1,2], [1, 1], 0, 86400, equalAddress]);
 
     
  })

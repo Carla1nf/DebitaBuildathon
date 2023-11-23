@@ -46,62 +46,49 @@ contract DebitaV2Factory is ReentrancyGuard {
 
     // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
     function createOfferV2(
-        address lendingAddress,
-        address collateralAddress,
-        uint256 lendingAmount,
-        uint256 collateralAmount,
-        bool isLendingNFT,
-        bool isCollateralNFT,
+        address[2] memory assetAddresses,
+        uint256[2] memory assetAmounts,
+        bool[2] memory isAssetNFT,
         uint8 _interestRate,
         uint _interestAmount,
         uint8 _paymentCount,
         uint32 _timelap,
-        bool isLending
+        bool isLending,
+        address interest_address
+
     ) external nonReentrant returns (address) {
         if (
             _timelap < 1 days ||
             _timelap > 365 days ||
-            lendingAmount == 0 ||
+            assetAmounts[0] == 0 ||
             _paymentCount > 10 ||
             _paymentCount == 0 ||
-            _paymentCount > lendingAmount ||
+            _paymentCount > assetAmounts[0] ||
             _interestRate > 10000
         ) {
             revert();
         }
 
         DebitaV2Offers newOfferContract = new DebitaV2Offers(
-            lendingAddress,
-            collateralAddress,
-            lendingAmount,
-            collateralAmount,
-            isLendingNFT,
-            isCollateralNFT,
+            assetAddresses,
+            assetAmounts,
+            isAssetNFT,
             _interestRate,
             _interestAmount,
             _paymentCount,
             _timelap,
             true,
-            msg.sender
+            msg.sender,
+            interest_address
         );
-
-        if (isLending) {
-            transferAssets(
+        uint index = isLending ? 0 : 1;
+        transferAssets(
                 msg.sender,
                 address(newOfferContract),
-                lendingAddress,
-                lendingAmount,
-                isLendingNFT
+                assetAddresses[index],
+                assetAmounts[index],
+                isAssetNFT[index]
             );
-        } else {
-            transferAssets(
-                msg.sender,
-                address(newOfferContract),
-                collateralAddress,
-                collateralAmount,
-                isCollateralNFT
-            );
-        }
 
         isSenderAnOffer[address(newOfferContract)] = true;
         emit OfferCreated(msg.sender, address(newOfferContract), true);
@@ -116,7 +103,8 @@ contract DebitaV2Factory is ReentrancyGuard {
         uint16 _interestRate,
         uint8 _paymentCount,
         uint32 _timelap,
-        uint256 _interestAmount
+        uint256 _interestAmount,
+        address interest_address
     ) public onlyOffers nonReentrant returns (address) {
         DebitaV2Loan newLoan = new DebitaV2Loan(
             nftIDS,
@@ -128,7 +116,8 @@ contract DebitaV2Factory is ReentrancyGuard {
             _paymentCount,
             _timelap,
             ownershipAddress,
-            address(this)
+            address(this),
+            interest_address
         );
         emit LoanCreated(
             assetAddresses[0],

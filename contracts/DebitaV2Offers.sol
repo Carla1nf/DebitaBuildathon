@@ -17,7 +17,8 @@ interface IDebitaFactoryV2 {
         uint16 _interestRate,
         uint8 _paymentCount,
         uint32 _timelap,
-        uint256 _interestAmount
+        uint256 _interestAmount,
+        address interest_address
     ) external returns (address);
 }
 
@@ -29,21 +30,22 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint borrowerId
     );
 
+    struct OfferInfo {
+        address[2] assetAddresses;
+        uint256[2] assetAmounts;
+        bool[2] isAssetNFT;
+        uint16 interestRate;
+        uint256 _interestAmount; // in case lending is NFT else 0
+        uint8 paymentCount;
+        uint32 _timelap;
+        bool isLending;
+        bool isActive;
+        address interest_address; // in case lending is NFT else 0
+    }
+
+    OfferInfo storage_OfferInfo;
+
     address immutable owner;
-    bool immutable isLendingNFT; // If the lender is an NFT
-    bool immutable isCollateralNFT; // If the collateral is an NFT
-    address immutable lendingAddress; // Address of the lent asset
-    address immutable collateralAddress; // Address of the collateral asset
-    uint256 immutable lendingAmount_TOTAL;
-    uint256 lendingAmount_AVAILABLE;
-    uint256 immutable collateralAmount_TOTAL;
-    uint256 collateralAmount_AVAILABLE;
-    uint16 immutable interest;
-    uint immutable interestAmount; // 0 if lending is an ERC-20
-    uint8 immutable paymentCount;
-    uint32 immutable timelap;
-    bool immutable ownerIsLender;
-    bool public isActive;
     address immutable debitaFactoryV2;
 
     modifier onlyOwner() {
@@ -52,125 +54,122 @@ contract DebitaV2Offers is ReentrancyGuard {
     }
 
     modifier onlyActive() {
-        require(isActive, "Offer is not active.");
+        require(storage_OfferInfo.isActive, "Offer is not active.");
         _;
     }
 
     constructor(
-        address _lendingAddress,
-        address _collateralAddress,
-        uint256 _lendingAmount,
-        uint256 _collateralAmount,
-        bool _isLendingNFT,
-        bool _isCollateralNFT,
-        uint16 _interest,
+        address[2] memory assetAddresses,
+        uint256[2] memory assetAmounts,
+        bool[2] memory isAssetNFT,
+        uint8 _interestRate,
         uint _interestAmount,
         uint8 _paymentCount,
         uint32 _timelap,
-        bool _senderIsLender,
-        address _owner
+        bool isLending,
+        address _owner,
+        address interest_address
     ) {
-        lendingAddress = _lendingAddress;
-        collateralAddress = _collateralAddress;
-        lendingAmount_TOTAL = _lendingAmount;
-        collateralAmount_TOTAL = _collateralAmount;
-        interest = _interest;
-        interestAmount = _interestAmount;
-        paymentCount = _paymentCount;
-        timelap = _timelap;
-        ownerIsLender = _senderIsLender;
-        isCollateralNFT = _isCollateralNFT;
+        storage_OfferInfo = OfferInfo({
+            assetAddresses: assetAddresses,
+            assetAmounts: assetAmounts,
+            isAssetNFT: isAssetNFT,
+            interestRate: _interestRate,
+            _interestAmount: _interestAmount,
+            paymentCount: _paymentCount,
+            _timelap: _timelap,
+            isLending: isLending,
+            isActive: true,
+            interest_address: interest_address
+        });
         owner = _owner;
-        isLendingNFT = _isLendingNFT;
-        isActive = true;
-        lendingAmount_AVAILABLE = _lendingAmount;
-        collateralAmount_AVAILABLE = _collateralAmount;
         debitaFactoryV2 = msg.sender;
     }
 
-
-
     function cancelOffer() external onlyOwner onlyActive nonReentrant {
-        isActive = false;
-        if (ownerIsLender) {
-            transferAssets(
-                address(this),
-                owner,
-                lendingAddress,
-                lendingAmount_AVAILABLE,
-                isLendingNFT
-            );
-        } else {
-            transferAssets(
-                address(this),
-                owner,
-                collateralAddress,
-                collateralAmount_AVAILABLE,
-                isCollateralNFT
-            );
-        }
+        OfferInfo memory m_offer = storage_OfferInfo;
+        storage_OfferInfo.isActive = false;
+        uint index = m_offer.isLending ? 0 : 1;
+        transferAssets(
+            address(this),
+            owner,
+            m_offer.assetAddresses[index],
+            m_offer.assetAmounts[index],
+            m_offer.isAssetNFT[index]
+        );
     }
 
     // 10 = 1% from the totalAmount
     function acceptOfferAsBorrower(
         uint porcentage
     ) public nonReentrant onlyActive {
-        require(ownerIsLender, "Owner is not lender");
+        OfferInfo memory m_offer = storage_OfferInfo;
+        require(m_offer.isLending, "Owner is not lender");
         require(porcentage <= 1000, "Porcentage must be less than 100%");
         require(porcentage >= 10, "Porcentage must be greater than 1%");
 
-        uint256 lendingAmount = (lendingAmount_AVAILABLE * porcentage) / 1000;
-        uint256 collateralAmount = (collateralAmount_AVAILABLE * porcentage) /
+        // [0]: Lending  [1]: Collateral
+        uint256 lendingAmount = (m_offer.assetAmounts[0] * porcentage) / 1000;
+        uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
             1000;
 
-        lendingAmount_AVAILABLE -= lendingAmount;
-        collateralAmount_AVAILABLE -= collateralAmount;
+        m_offer.assetAmounts[0] -= lendingAmount;
+        m_offer.assetAmounts[1] -= collateralAmount;
 
-        if (lendingAmount_AVAILABLE == 0) {
-            isActive = false;
+        if (m_offer.assetAmounts[0] == 0) {
+            storage_OfferInfo.isActive = false;
         }
 
         transferAssets(
             msg.sender,
             address(this),
-            collateralAddress,
+            m_offer.assetAddresses[1],
             collateralAmount,
-            isCollateralNFT
+            m_offer.isAssetNFT[1]
         );
+        storage_OfferInfo = m_offer;
+        
         uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
             [owner, msg.sender]
         );
-        bool[2] memory assetNFT = [isLendingNFT, isCollateralNFT];
         address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
             ids,
-            [lendingAddress, collateralAddress],
+            m_offer.assetAddresses,
             [lendingAmount, collateralAmount],
-            assetNFT,
-            interest,
-            paymentCount,
-            timelap,
-            interestAmount
+            m_offer.isAssetNFT,
+            m_offer.interestRate,
+            m_offer.paymentCount,
+            m_offer._timelap,
+            m_offer._interestAmount,
+            m_offer.interest_address
         );
+
         // Send collateral to loanAddress
         transferAssets(
             address(this),
             address(loanAddress),
-            collateralAddress,
+            m_offer.assetAddresses[1],
             collateralAmount,
-            isCollateralNFT
+            m_offer.isAssetNFT[1]
         );
 
         // Transfer tokens to the borrower
         transferAssets(
             address(this),
             msg.sender,
-            lendingAddress,
+             m_offer.assetAddresses[0],
             lendingAmount,
-            isLendingNFT
+            m_offer.isAssetNFT[0]
         );
+       
     }
 
-        function transferAssets(
+
+     function getOffersData() public view returns (OfferInfo memory) {
+        return storage_OfferInfo;
+    }
+
+    function transferAssets(
         address from,
         address to,
         address assetAddress,
@@ -180,8 +179,13 @@ contract DebitaV2Offers is ReentrancyGuard {
         if (isNFT) {
             ERC721(assetAddress).transferFrom(from, to, assetAmount);
         } else {
-            ERC20(assetAddress).transfer(to, assetAmount);
+            if(from == address(this)) {
+                ERC20(assetAddress).transfer(to, assetAmount);
+            } else {
+                ERC20(assetAddress).transferFrom(from, to, assetAmount);
+            }
         }
     }
-    
+
+   
 }
