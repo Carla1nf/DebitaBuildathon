@@ -23,6 +23,7 @@ interface IDebitaFactoryV2 {
 }
 
 contract DebitaV2Offers is ReentrancyGuard {
+
     event LoanCreated(
         address indexed lendingAddress,
         address indexed loanAddress,
@@ -131,6 +132,72 @@ contract DebitaV2Offers is ReentrancyGuard {
         
         uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
             [owner, msg.sender]
+        );
+        address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
+            ids,
+            m_offer.assetAddresses,
+            [lendingAmount, collateralAmount],
+            m_offer.isAssetNFT,
+            m_offer.interestRate,
+            m_offer.paymentCount,
+            m_offer._timelap,
+            m_offer._interestAmount,
+            m_offer.interest_address
+        );
+
+        // Send collateral to loanAddress
+        transferAssets(
+            address(this),
+            address(loanAddress),
+            m_offer.assetAddresses[1],
+            collateralAmount,
+            m_offer.isAssetNFT[1]
+        );
+
+        // Transfer tokens to the borrower
+        transferAssets(
+            address(this),
+            msg.sender,
+             m_offer.assetAddresses[0],
+            lendingAmount,
+            m_offer.isAssetNFT[0]
+        );
+       
+    }
+
+
+function acceptOfferAsLender(
+        uint porcentage
+    ) public nonReentrant onlyActive {
+        OfferInfo memory m_offer = storage_OfferInfo;
+        require(!m_offer.isLending, "Owner is not borrower");
+        require(porcentage <= 1000, "Porcentage must be less than 100%");
+        require(porcentage >= 10, "Porcentage must be greater than 1%");
+
+        // [0]: Lending  [1]: Collateral
+        uint256 lendingAmount = (m_offer.assetAmounts[0] * porcentage) / 1000;
+        uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
+            1000;
+
+        m_offer.assetAmounts[0] -= lendingAmount;
+        m_offer.assetAmounts[1] -= collateralAmount;
+
+        if (m_offer.assetAmounts[0] == 0) {
+            storage_OfferInfo.isActive = false;
+        }
+        
+        // Sending Lending Assets to contract
+        transferAssets(
+            msg.sender,
+            address(this),
+            m_offer.assetAddresses[0],
+            lendingAmount,
+            m_offer.isAssetNFT[0]
+        );
+        storage_OfferInfo = m_offer;
+        
+        uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
+            [ msg.sender, owner]
         );
         address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
             ids,

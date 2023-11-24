@@ -81,7 +81,7 @@ contract DebitaV2Factory is ReentrancyGuard {
             _interestAmount,
             _paymentCount,
             _timelap,
-            true,
+            isLending,
             msg.sender,
             interest_address
         );
