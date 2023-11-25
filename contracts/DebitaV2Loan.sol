@@ -25,7 +25,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         address[2] assetAddresses; // 0: Lending, 1: Collateral
         uint256[2] assetAmounts; // 0: Lending, 1: Collateral
         bool[2] isAssetNFT; // 0: Lending, 1: Collateral
-        uint256[3] nftData; // [0]: NFT ID Lender, [1] NFT ID Collateral, [2] Amount of interest ---  0 on each if not NFT
+        uint256[3] nftData; // [0]: NFT ID Lender, [1] NFT ID Collateral, [2] Amount of interest (If lending is NFT) ---  0 on each if not NFT
         uint32 timelap; // timelap on each payment
         address interestAddress_Lending_NFT; // only if the lending is an NFT
         uint8 paymentCount;
@@ -171,24 +171,29 @@ contract DebitaV2Loan is ReentrancyGuard {
         // Mark the loan as executed
         storage_loanInfo.executed = true;
         address _feeAddress = IDebitaFactory(debitaFactoryV2).feeAddress();
-        uint fee = (m_loan.assetAmounts[1] * 2) / 100;
+        
+        // If lending is nft, to claim the NFT collateral, the lender must pay 20% of the interest, otherwise 2% of the lending.
+       if(m_loan.isAssetNFT[1]) {
+         uint feeAmount = m_loan.isAssetNFT[0] ? 20 : 2;
+         uint amount = m_loan.isAssetNFT[0] ? m_loan.nftData[2] : m_loan.assetAmounts[0];
+         address feeToken = m_loan.isAssetNFT[0] ? m_loan.interestAddress_Lending_NFT : m_loan.assetAddresses[0]; 
+         uint fee = (amount * feeAmount) / 100;
 
-        transferAssets(
-            address(this),
-            msg.sender,
-            m_loan.assetAddresses[1],
-            m_loan.assetAmounts[1] - fee,
-            false,
-            0
-        );
-        transferAssets(
-            address(this),
-            _feeAddress,
-            m_loan.assetAddresses[1],
-            fee,
-            false,
-            0
-        );
+         // Sending Fee and then collateral
+         transferAssets(msg.sender, _feeAddress, feeToken, fee, false, 0);
+         transferAssets(address(this), msg.sender, m_loan.assetAddresses[1], m_loan.assetAmounts[1], true, m_loan.nftData[1]);
+        } else {
+            uint fee = (m_loan.assetAmounts[1] * 2) / 100;
+            transferAssets(address(this), _feeAddress, m_loan.assetAddresses[1], fee, false, 0);
+            transferAssets(
+                address(this),
+                msg.sender,
+                m_loan.assetAddresses[1],
+                m_loan.assetAmounts[1] - fee,
+                m_loan.isAssetNFT[1],
+                m_loan.nftData[1]
+            );
+        }
         emit collateralClaimed(msg.sender);
     }
 
