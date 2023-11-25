@@ -52,7 +52,7 @@ contract DebitaV2Factory is ReentrancyGuard {
         uint256[2] memory assetAmounts,
         bool[2] memory isAssetNFT,
         uint8 _interestRate,
-        uint _interestAmount,
+        uint[3] calldata nftData, // In case of NFT, nftData[0] = nftID, nftData[1] = value of veNFT (0 if not veNFT) nfData[2] = interest Amount
         uint8 _paymentCount,
         uint32 _timelap,
         bool isLending,
@@ -78,7 +78,7 @@ contract DebitaV2Factory is ReentrancyGuard {
             assetAmounts,
             isAssetNFT,
             _interestRate,
-            _interestAmount,
+            nftData,
             _paymentCount,
             _timelap,
             isLending,

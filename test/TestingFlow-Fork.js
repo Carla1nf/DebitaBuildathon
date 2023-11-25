@@ -78,7 +78,7 @@ describe("Lock", function () {
       [100, 100],
       [false, false],
       10,
-      0,
+      [0,0,0],
       1,
       86400,
       true,
@@ -90,7 +90,7 @@ describe("Lock", function () {
       [100, 100],
       [false, false],
       10,
-      0,
+      [0,0,0],
       1,
       86400,
       false,
@@ -134,7 +134,7 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        0,
+        [0,0,0],
         1,
         86400,
         true,
@@ -146,7 +146,7 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        0,
+        [0,0,0],
         1,
         86400,
         false,
@@ -175,10 +175,10 @@ describe("Lock", function () {
         */
         let tx_Accept;
         if (i == 0) {
-          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(10);
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(10, 0);
   
         } else {
-          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(10);
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(10, 0);
         }
         const offerData = await offerContract.getOffersData();
         const receipt_accept = await tx_Accept.wait()
@@ -229,7 +229,7 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        0,
+        [0,0,0],
         1,
         86400,
         true,
@@ -241,7 +241,7 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        0,
+        [0,0,0],
         1,
         86400,
         false,
@@ -266,11 +266,11 @@ describe("Lock", function () {
       await contractERC20.connect(lender).approve(offerContract.target, valueInWei(10000));
       let tx_Accept;
      if(i == 0) {
-      await offerContract.connect(borrower).acceptOfferAsBorrower(10);
-      tx_Accept = await offerContract.connect(borrower).acceptOfferAsBorrower(1000);
+      await offerContract.connect(borrower).acceptOfferAsBorrower(10, 0);
+      tx_Accept = await offerContract.connect(borrower).acceptOfferAsBorrower(1000, 0);
      } else {
-      await offerContract.connect(lender).acceptOfferAsLender(10);
-      tx_Accept = await offerContract.connect(lender).acceptOfferAsLender(1000);
+      await offerContract.connect(lender).acceptOfferAsLender(10, 0);
+      tx_Accept = await offerContract.connect(lender).acceptOfferAsLender(1000, 0);
      }
 
     

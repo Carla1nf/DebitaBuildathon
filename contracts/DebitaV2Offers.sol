@@ -3,8 +3,9 @@ pragma solidity ^0.8.0;
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
-interface IDebitaFactoryV2 {
+interface IDebitaFactoryV2 is IERC721Receiver {
     function mintOwnerships(
         address[2] calldata owners
     ) external returns (uint[2] memory);
@@ -23,7 +24,6 @@ interface IDebitaFactoryV2 {
 }
 
 contract DebitaV2Offers is ReentrancyGuard {
-
     event LoanCreated(
         address indexed lendingAddress,
         address indexed loanAddress,
@@ -36,7 +36,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256[2] assetAmounts;
         bool[2] isAssetNFT;
         uint16 interestRate;
-        uint256 _interestAmount; // in case lending is NFT else 0
+        uint[3] nftData; // [0]: the id of the NFT that the owner transfered here (could be borrower or lender) in case lending/borrowing is NFT else 0
         uint8 paymentCount;
         uint32 _timelap;
         bool isLending;
@@ -64,7 +64,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256[2] memory assetAmounts,
         bool[2] memory isAssetNFT,
         uint8 _interestRate,
-        uint _interestAmount,
+        uint[3] memory _nftData, // In case of NFT, nftData[0] = nftID, nftData[1] = value of veNFT (0 if not veNFT) nfData[2] = interest Amount, nfData[3] = interest
         uint8 _paymentCount,
         uint32 _timelap,
         bool isLending,
@@ -76,7 +76,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             assetAmounts: assetAmounts,
             isAssetNFT: isAssetNFT,
             interestRate: _interestRate,
-            _interestAmount: _interestAmount,
+            nftData: _nftData,
             paymentCount: _paymentCount,
             _timelap: _timelap,
             isLending: isLending,
@@ -96,13 +96,15 @@ contract DebitaV2Offers is ReentrancyGuard {
             owner,
             m_offer.assetAddresses[index],
             m_offer.assetAmounts[index],
-            m_offer.isAssetNFT[index]
+            m_offer.isAssetNFT[index],
+            m_offer.nftData[0]
         );
     }
 
     // 10 = 1% from the totalAmount
     function acceptOfferAsBorrower(
-        uint porcentage
+        uint porcentage,
+           uint sendingNFTID
     ) public nonReentrant onlyActive {
         OfferInfo memory m_offer = storage_OfferInfo;
         require(m_offer.isLending, "Owner is not lender");
@@ -126,10 +128,11 @@ contract DebitaV2Offers is ReentrancyGuard {
             address(this),
             m_offer.assetAddresses[1],
             collateralAmount,
-            m_offer.isAssetNFT[1]
+            m_offer.isAssetNFT[1],
+            sendingNFTID
         );
         storage_OfferInfo = m_offer;
-        
+
         uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
             [owner, msg.sender]
         );
@@ -141,7 +144,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.interestRate,
             m_offer.paymentCount,
             m_offer._timelap,
-            m_offer._interestAmount,
+            m_offer.nftData[2],
             m_offer.interest_address
         );
 
@@ -151,23 +154,24 @@ contract DebitaV2Offers is ReentrancyGuard {
             address(loanAddress),
             m_offer.assetAddresses[1],
             collateralAmount,
-            m_offer.isAssetNFT[1]
+            m_offer.isAssetNFT[1],
+            sendingNFTID
         );
 
         // Transfer tokens to the borrower
         transferAssets(
             address(this),
             msg.sender,
-             m_offer.assetAddresses[0],
+            m_offer.assetAddresses[0],
             lendingAmount,
-            m_offer.isAssetNFT[0]
+            m_offer.isAssetNFT[0],
+            m_offer.nftData[0]
         );
-       
     }
 
-
-function acceptOfferAsLender(
-        uint porcentage
+    function acceptOfferAsLender(
+        uint porcentage,
+        uint sendingNFTID
     ) public nonReentrant onlyActive {
         OfferInfo memory m_offer = storage_OfferInfo;
         require(!m_offer.isLending, "Owner is not borrower");
@@ -185,20 +189,22 @@ function acceptOfferAsLender(
         if (m_offer.assetAmounts[0] == 0) {
             storage_OfferInfo.isActive = false;
         }
-        
+
         // Sending Lending Assets to contract
         transferAssets(
             msg.sender,
             address(this),
             m_offer.assetAddresses[0],
             lendingAmount,
-            m_offer.isAssetNFT[0]
+            m_offer.isAssetNFT[0],
+            sendingNFTID
         );
         storage_OfferInfo = m_offer;
-        
+
         uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
-            [ msg.sender, owner]
+            [msg.sender, owner]
         );
+
         address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
             ids,
             m_offer.assetAddresses,
@@ -207,7 +213,7 @@ function acceptOfferAsLender(
             m_offer.interestRate,
             m_offer.paymentCount,
             m_offer._timelap,
-            m_offer._interestAmount,
+            m_offer.nftData[2],
             m_offer.interest_address
         );
 
@@ -217,22 +223,22 @@ function acceptOfferAsLender(
             address(loanAddress),
             m_offer.assetAddresses[1],
             collateralAmount,
-            m_offer.isAssetNFT[1]
+            m_offer.isAssetNFT[1],
+            m_offer.nftData[0]
         );
 
         // Transfer tokens to the borrower
         transferAssets(
             address(this),
             msg.sender,
-             m_offer.assetAddresses[0],
+            m_offer.assetAddresses[0],
             lendingAmount,
-            m_offer.isAssetNFT[0]
+            m_offer.isAssetNFT[0],
+            sendingNFTID
         );
-       
     }
 
-
-     function getOffersData() public view returns (OfferInfo memory) {
+    function getOffersData() public view returns (OfferInfo memory) {
         return storage_OfferInfo;
     }
 
@@ -241,18 +247,17 @@ function acceptOfferAsLender(
         address to,
         address assetAddress,
         uint256 assetAmount,
-        bool isNFT
+        bool isNFT,
+        uint nftID // 0 IF NOT NFT
     ) internal {
         if (isNFT) {
             ERC721(assetAddress).transferFrom(from, to, assetAmount);
         } else {
-            if(from == address(this)) {
+            if (from == address(this)) {
                 ERC20(assetAddress).transfer(to, assetAmount);
             } else {
                 ERC20(assetAddress).transferFrom(from, to, assetAmount);
             }
         }
     }
-
-   
 }
