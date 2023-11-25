@@ -73,9 +73,18 @@ const {
 
       await contractERC721.connect(holderEQUAL).mint();
       
+      await contractERC721.connect(holderEQUAL).mint();
+
+      await contractERC721.connect(signerUser2).mint();
+
+      await contractERC721.connect(signerUser2).mint();
+
       await contractERC721.connect(signerUser2).approve(contractFactoryV2.target, 1);
 
       await contractERC721.connect(holderEQUAL).approve(contractFactoryV2.target, 2);
+
+      await contractERC721.connect(holderEQUAL).approve(contractFactoryV2.target, 3);
+
   
   
   
@@ -89,12 +98,155 @@ const {
         [1, 1],
         [true, true],
         10,
-        0,
+        [2, 0, 100],
         1,
         86400,
         true,
         equalAddress
       );
+
+      const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+        [contractERC721.target, contractERC721.target],
+        [1, 1],
+        [true, true],
+        10,
+        [3,0, 100],
+        1,
+        86400,
+        false,
+        equalAddress
+      );
+
+      const receipt = await tx.wait();
+      const receipt2 = await tx2.wait()
+      const createdReceipt = [receipt, receipt2]
+      let currentReceipt;
+
+      for(let i = 0; i < 2; i++) {
+        currentReceipt = createdReceipt[i];
+        const createdOfferAddress = currentReceipt.logs[1].args[1];
+        const nftid = i == 0 ? 2 : 3; 
+        //  --- Check if funding got there ---
+        expect(await contractERC721.ownerOf(nftid)).to.be.equal(createdOfferAddress);
+        // ------
+    
+        // Cancel and check if value gets back
+        const offerContract = await contractOffersV2.attach(createdOfferAddress);
+    
+        const offerDataBefore = await offerContract.getOffersData();
+        checkData(offerDataBefore, [8], [true]);
+    
+        await offerContract.connect(holderEQUAL).cancelOffer();
+  
+        expect(await contractERC721.ownerOf(nftid)).to.be.equal(holderEQUAL.address);
+        const offerData = await offerContract.getOffersData();
+        checkData(offerData, [8], [false])
+        await expect(offerContract.connect(holderEQUAL).cancelOffer()).to.be.revertedWith("Offer is not active.");
+      }
     })
 
+    it("Accept Offer, Create loan, Pay it & Claim it -- as Lender & Borrow with $EQUAL (Lending: ERC-721, Collateral: ERC-721)", async () => {
+
+      const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+        [contractERC721.target, contractERC721.target],
+        [1, 1],
+        [true, true],
+        10,
+        [2, 0, 100],
+        1,
+        86400,
+        true,
+        equalAddress
+      );
+
+      const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+        [contractERC721.target, contractERC721.target],
+        [1, 1],
+        [true, true],
+        10,
+        [3,0, 100],
+        1,
+        86400,
+        false,
+        equalAddress
+      );
+
+      const receipt = await tx.wait();
+      const receipt2 = await tx2.wait()
+      const createdReceipt = [receipt, receipt2]
+      let currentReceipt;
+
+      for(let i = 0; i < 2; i++) {
+
+        const borrower = i == 0 ? signerUser2 : holderEQUAL;
+        const lender = i == 0 ? holderEQUAL : signerUser2;
+
+
+        currentReceipt = createdReceipt[i];
+        const createdOfferAddress = currentReceipt.logs[1].args[1];
+        const offerContract = await contractOffersV2.attach(createdOfferAddress);
+        const sendingID = i == 0 ? 4 : 5;
+        await contractERC721.connect(signerUser2).approve(createdOfferAddress, sendingID);
+       
+        /* 
+        ACCEPT OFFER 
+        */
+        let tx_Accept;
+        if(i == 0) {
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(1000, sendingID);
+        } else {
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(1000, sendingID);
+        }
+      
+        const offerData = await offerContract.getOffersData();
+        const receipt_accept = await tx_Accept.wait()
+  
+        const createdLoanAddress = receipt_accept.logs[3].args[1];
+        const loanContract = await contractLoansV2.attach(createdLoanAddress);
+
+        checkData(offerData, [1], [[0, 0]]);
+        if(i == 0) {
+          expect(await contractERC721.ownerOf(2)).to.be.equal(borrower.address);
+        } else {
+          expect(await contractERC721.ownerOf(3)).to.be.equal(createdLoanAddress);
+          expect(await contractERC721.ownerOf(5)).to.be.equal(borrower.address);
+        }
+  
+        const loanData = await loanContract.getLoanData();
+        console.log(loanData);
+      //  checkData(loanData, [0, 2, 4, 5, 6], [[1, 1], [1, 2], 0, 86400, equalAddress]);
+
+       
+        /* 
+        REPAY LOAN
+        */
+
+        const approveID = i == 0 ? 2 : 5
+        await contractERC721.connect(borrower).approve(loanContract.target, approveID);
+        await contractERC20.connect(borrower).approve(loanContract.target, valueInWei(10000))
+        await loanContract.connect(borrower).payDebt();
+  
+        // Check payment back
+
+        const claimingId = i == 0 ? 4 : 3
+
+
+        await loanContract.connect(borrower).claimCollateralasBorrower();
+        const balanceAfter = await contractERC721.ownerOf(claimingId);
+        expect(balanceAfter).to.be.equal(borrower.address);
+        
+    
+        /* 
+        CLAIM DEBT AS LENDER
+        */
+
+        await loanContract.connect(lender).claimDebt();
+        const balanceAfterDebt = await contractERC721.ownerOf(approveID);
+
+        expect(balanceAfterDebt).to.be.equal(lender.address);
+      }
+    }); 
+
+ 
+     
 });

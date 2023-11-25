@@ -25,8 +25,8 @@ contract DebitaV2Loan is ReentrancyGuard {
         address[2] assetAddresses; // 0: Lending, 1: Collateral
         uint256[2] assetAmounts; // 0: Lending, 1: Collateral
         bool[2] isAssetNFT; // 0: Lending, 1: Collateral
-        uint256 interestAmount_Lending_NFT; // only if the lending is an NFT
-        uint256 timelap; // timelap on each payment
+        uint256[3] nftData; // [0]: NFT ID Lender, [1] NFT ID Collateral, [2] Amount of interest ---  0 on each if not NFT
+        uint32 timelap; // timelap on each payment
         address interestAddress_Lending_NFT; // only if the lending is an NFT
         uint8 paymentCount;
         uint8 paymentsPaid;
@@ -48,10 +48,10 @@ contract DebitaV2Loan is ReentrancyGuard {
         address[2] memory assetAddresses,
         uint256[2] memory assetAmounts,
         bool[2] memory _isAssetNFT,
-        uint _interestRate,
-        uint _interestAmount,
-        uint8 _paymentCount,
-        uint _timelap,
+        uint32 _interestRate,
+        uint[3] memory nftsData,
+        uint32 _paymentCount,
+        uint32 _timelap,
         address _ownershipContract, // contract address for the ownerships
         address debitaV2, // contract address of DebitaV2Factory
         address interest_address // 0x0 if lending is not NFT
@@ -64,10 +64,10 @@ contract DebitaV2Loan is ReentrancyGuard {
             assetAddresses: assetAddresses,
             assetAmounts: assetAmounts,
             isAssetNFT: _isAssetNFT,
-            interestAmount_Lending_NFT: _interestAmount / _paymentCount,
+            nftData: nftsData,
             timelap: _timelap,
             interestAddress_Lending_NFT: interest_address,
-            paymentCount: _paymentCount,
+            paymentCount: uint8(_paymentCount),
             paymentsPaid: 0,
             paymentAmount: totalAmountToPay / _paymentCount,
             deadline: block.timestamp + (_timelap * _paymentCount),
@@ -106,8 +106,8 @@ contract DebitaV2Loan is ReentrancyGuard {
 
         uint fee;
         if (loan.isAssetNFT[0]) {
-            fee = (loan.interestAmount_Lending_NFT * interestFEE) / 100;
-            claimableAmount += loan.interestAmount_Lending_NFT - fee;
+            fee = (loan.nftData[2] * interestFEE) / 100;
+            claimableAmount += loan.nftData[2] - fee;
         } else {
             uint interestPerPayment = ((loan.paymentAmount *
                 loan.paymentCount) - loan.assetAmounts[0]) / loan.paymentCount;
@@ -125,7 +125,7 @@ contract DebitaV2Loan is ReentrancyGuard {
             transferAssetHerewithFee(
                 msg.sender,
                 loan.interestAddress_Lending_NFT,
-                loan.interestAmount_Lending_NFT,
+                loan.nftData[2],
                 fee,
                 _feeAddress
             );
@@ -134,8 +134,9 @@ contract DebitaV2Loan is ReentrancyGuard {
                 msg.sender,
                 address(this),
                 loan.assetAddresses[0],
-                loan.paymentAmount,
-                loan.isAssetNFT[0]
+                1,
+                loan.isAssetNFT[0],
+                loan.nftData[0]
             );
         } else {
             transferAssetHerewithFee(
@@ -177,14 +178,16 @@ contract DebitaV2Loan is ReentrancyGuard {
             msg.sender,
             m_loan.assetAddresses[1],
             m_loan.assetAmounts[1] - fee,
-            false
+            false,
+            0
         );
         transferAssets(
             address(this),
             _feeAddress,
             m_loan.assetAddresses[1],
             fee,
-            false
+            false,
+            0
         );
         emit collateralClaimed(msg.sender);
     }
@@ -213,7 +216,8 @@ contract DebitaV2Loan is ReentrancyGuard {
             msg.sender,
             m_loan.assetAddresses[1],
             m_loan.assetAmounts[1],
-            m_loan.isAssetNFT[1]
+            m_loan.isAssetNFT[1],
+            m_loan.nftData[1]
         );
 
         emit collateralClaimed(msg.sender);
@@ -244,7 +248,7 @@ contract DebitaV2Loan is ReentrancyGuard {
             ? m_loan.interestAddress_Lending_NFT
             : m_loan.assetAddresses[0];
 
-        transferAssets(address(this), msg.sender, tokenAddress, amount, false);
+        transferAssets(address(this), msg.sender, tokenAddress, amount, false, 0);
 
         if (m_loan.isAssetNFT[0]) {
             transferAssets(
@@ -252,7 +256,8 @@ contract DebitaV2Loan is ReentrancyGuard {
                 msg.sender,
                 m_loan.assetAddresses[0],
                 m_loan.paymentAmount,
-                true
+                true,
+                m_loan.nftData[0]
             );
         }
     }
@@ -268,10 +273,11 @@ contract DebitaV2Loan is ReentrancyGuard {
         address to,
         address assetAddress,
         uint256 assetAmount,
-        bool isNFT
+        bool isNFT,
+        uint nftID
     ) internal {
         if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, assetAmount);
+            ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             if (from == address(this)) {
                 ERC20(assetAddress).transfer(to, assetAmount);

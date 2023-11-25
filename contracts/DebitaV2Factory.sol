@@ -91,7 +91,8 @@ contract DebitaV2Factory is ReentrancyGuard {
                 address(newOfferContract),
                 assetAddresses[index],
                 assetAmounts[index],
-                isAssetNFT[index]
+                isAssetNFT[index],
+                nftData[0]
             );
 
         isSenderAnOffer[address(newOfferContract)] = true;
@@ -104,10 +105,8 @@ contract DebitaV2Factory is ReentrancyGuard {
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
         bool[2] calldata isAssetNFT,
-        uint16 _interestRate,
-        uint8 _paymentCount,
-        uint32 _timelap,
-        uint256 _interestAmount,
+        uint32[3] calldata loanData, // [0] = interestRate, [1] = _paymentCount, [2] = _timelap
+        uint256[3] calldata nftData,
         address interest_address
     ) public onlyOffers nonReentrant returns (address) {
         DebitaV2Loan newLoan = new DebitaV2Loan(
@@ -115,10 +114,10 @@ contract DebitaV2Factory is ReentrancyGuard {
             assetAddresses,
             assetAmounts,
             isAssetNFT,
-            _interestRate,
-            _interestAmount,
-            _paymentCount,
-            _timelap,
+            loanData[0],
+            nftData,
+            loanData[1],
+            loanData[2],
             ownershipAddress,
             address(this),
             interest_address
@@ -139,10 +138,11 @@ contract DebitaV2Factory is ReentrancyGuard {
         address to,
         address assetAddress,
         uint256 assetAmount,
-        bool isNFT
+        bool isNFT,
+        uint nftID
     ) internal {
         if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, assetAmount);
+            ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             ERC20(assetAddress).transferFrom(from, to, assetAmount);
         }

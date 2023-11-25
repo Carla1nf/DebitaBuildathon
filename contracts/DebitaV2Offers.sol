@@ -15,10 +15,8 @@ interface IDebitaFactoryV2 is IERC721Receiver {
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
         bool[2] calldata isAssetNFT,
-        uint16 _interestRate,
-        uint8 _paymentCount,
-        uint32 _timelap,
-        uint256 _interestAmount,
+        uint32[3] calldata loanData, // [0] = interestRate, [1] = _paymentCount, [2] = _timelap
+        uint256[3] calldata nftData,
         address interest_address
     ) external returns (address);
 }
@@ -36,7 +34,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256[2] assetAmounts;
         bool[2] isAssetNFT;
         uint16 interestRate;
-        uint[3] nftData; // [0]: the id of the NFT that the owner transfered here (could be borrower or lender) in case lending/borrowing is NFT else 0
+        uint[3] nftData; // [0]: the id of the NFT that the owner transfered here (could be borrower or lender) in case lending/borrowing is NFT else 0 [1]: value of veNFT (0 if not veNFT) [2]: interest Amount
         uint8 paymentCount;
         uint32 _timelap;
         bool isLending;
@@ -104,7 +102,7 @@ contract DebitaV2Offers is ReentrancyGuard {
     // 10 = 1% from the totalAmount
     function acceptOfferAsBorrower(
         uint porcentage,
-           uint sendingNFTID
+        uint sendingNFTID
     ) public nonReentrant onlyActive {
         OfferInfo memory m_offer = storage_OfferInfo;
         require(m_offer.isLending, "Owner is not lender");
@@ -141,10 +139,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.assetAddresses,
             [lendingAmount, collateralAmount],
             m_offer.isAssetNFT,
-            m_offer.interestRate,
-            m_offer.paymentCount,
-            m_offer._timelap,
-            m_offer.nftData[2],
+            [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
+            [m_offer.nftData[0], sendingNFTID, m_offer.nftData[2]],
             m_offer.interest_address
         );
 
@@ -178,6 +174,13 @@ contract DebitaV2Offers is ReentrancyGuard {
         require(porcentage <= 1000, "Porcentage must be less than 100%");
         require(porcentage >= 10, "Porcentage must be greater than 1%");
 
+        if (m_offer.isAssetNFT[0] || m_offer.isAssetNFT[1]) {
+            require(
+                porcentage == 1000,
+                "Porcentage must be 100% when lending/borrowing NFT"
+            );
+        }
+
         // [0]: Lending  [1]: Collateral
         uint256 lendingAmount = (m_offer.assetAmounts[0] * porcentage) / 1000;
         uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
@@ -210,10 +213,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.assetAddresses,
             [lendingAmount, collateralAmount],
             m_offer.isAssetNFT,
-            m_offer.interestRate,
-            m_offer.paymentCount,
-            m_offer._timelap,
-            m_offer.nftData[2],
+            [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
+            [sendingNFTID, m_offer.nftData[0], m_offer.nftData[2]],
             m_offer.interest_address
         );
 
@@ -230,7 +231,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         // Transfer tokens to the borrower
         transferAssets(
             address(this),
-            msg.sender,
+            owner,
             m_offer.assetAddresses[0],
             lendingAmount,
             m_offer.isAssetNFT[0],
@@ -251,7 +252,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint nftID // 0 IF NOT NFT
     ) internal {
         if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, assetAmount);
+            ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             if (from == address(this)) {
                 ERC20(assetAddress).transfer(to, assetAmount);
