@@ -22,6 +22,8 @@ interface IDebitaOffer {
     function getOffersData() external view returns (OfferInfo memory);
 
     function insertAssets(uint assetAmount) external;
+
+    function owner() external returns (address);
 }
 
 interface IOwnerships {
@@ -32,7 +34,7 @@ interface IOwnerships {
     function burn(uint256 tokenId) external;
 }
 
-interface IDebitaFactory {
+interface IDebitaLoanFactory {
     function feeAddress() external returns (address);
 }
 
@@ -58,7 +60,7 @@ contract DebitaV2Loan is ReentrancyGuard {
 
     LoanData storage_loanInfo;
     address private ownershipContract;
-    address private debitaFactoryV2;
+    address private debitaLoanFactory;
     address public debitaOfferV2;
     uint private constant interestFEE = 6;
     uint public claimableAmount;
@@ -96,7 +98,7 @@ contract DebitaV2Loan is ReentrancyGuard {
             executed: false
         });
         ownershipContract = _ownershipContract;
-        debitaFactoryV2 = debitaAddresses[0];
+        debitaLoanFactory = debitaAddresses[0];
         debitaOfferV2 = debitaAddresses[1];
     }
 
@@ -140,7 +142,8 @@ contract DebitaV2Loan is ReentrancyGuard {
         loan.paymentsPaid += 1;
         loan.deadlineNext += loan.timelap;
         storage_loanInfo = loan;
-        address _feeAddress = IDebitaFactory(debitaFactoryV2).feeAddress();
+        address _feeAddress = IDebitaLoanFactory(debitaLoanFactory)
+            .feeAddress();
 
         // If lending is NFT -- get interest from interestAmount_Lending_NFT
         if (loan.isAssetNFT[0]) {
@@ -192,7 +195,8 @@ contract DebitaV2Loan is ReentrancyGuard {
         _ownerContract.burn(m_loan.IDS[0]);
         // Mark the loan as executed
         storage_loanInfo.executed = true;
-        address _feeAddress = IDebitaFactory(debitaFactoryV2).feeAddress();
+        address _feeAddress = IDebitaLoanFactory(debitaLoanFactory)
+            .feeAddress();
 
         // If lending is nft, to claim the NFT collateral, the lender must pay 20% of the interest, otherwise 2% of the lending.
         if (m_loan.isAssetNFT[1]) {
@@ -255,44 +259,76 @@ contract DebitaV2Loan is ReentrancyGuard {
 
         // Burn msg.sender NFT
         _ownerContract.burn(m_loan.IDS[1]);
-        
-        IDebitaOffer.OfferInfo memory offerInfo = IDebitaOffer(debitaOfferV2).getOffersData();
+
+        IDebitaOffer.OfferInfo memory offerInfo = IDebitaOffer(debitaOfferV2)
+            .getOffersData();
+
+        address ownerOfOffer = IDebitaOffer(debitaOfferV2).owner();
+
+        address currentOwner = _ownerContract.ownerOf(m_loan.IDS[0]);
 
         bool isPerpetual = offerInfo.isPerpetual;
 
         bool isLendingOffer = offerInfo.isLending;
 
-        if (isPerpetual) {
-           if(isLendingOffer) {
-            transferAssets(
-            address(this),
-            msg.sender,
-            m_loan.assetAddresses[1],
-            m_loan.assetAmounts[1],
-            m_loan.isAssetNFT[1],
-            m_loan.nftData[1]
-        );
+        if (
+            isPerpetual &&
+            (((ownerOfOffer == msg.sender) && !isLendingOffer) ||
+                (isLendingOffer && (currentOwner == ownerOfOffer)))
+        ) {
+            uint index = isLendingOffer ? 0 : 1;
+                approveAssets(
+                    debitaOfferV2,
+                    m_loan.assetAddresses[index],
+                    claimableAmount,
+                    m_loan.nftData[index],
+                    m_loan.isAssetNFT[index]
+                );
+            if (isLendingOffer) {
+                // Send collateral to borrower & the lending back to the offer
+                transferAssets(
+                    address(this),
+                    msg.sender,
+                    m_loan.assetAddresses[1],
+                    m_loan.assetAmounts[1],
+                    m_loan.isAssetNFT[1],
+                    m_loan.nftData[1]
+                );
+                
+            
+             
+                uint sendingAmount = m_loan.isAssetNFT[0] ? 1 : claimableAmount;
+                IDebitaOffer(debitaOfferV2).insertAssets(sendingAmount);
 
-           IDebitaOffer(debitaOfferV2).insertAssets(claimableAmount);
+                // Send interest to the lender if the lending is an NFT
+                if (m_loan.isAssetNFT[0]) {
+                    transferAssets(
+                        address(this),
+                        currentOwner,
+                        m_loan.interestAddress_Lending_NFT,
+                        claimableAmount,
+                        false,
+                        0
+                    );
+                }
 
-           claimableAmount = 0;
-           _ownerContract.burn(m_loan.IDS[0]);
-
-           } else {
-            IDebitaOffer(debitaOfferV2).insertAssets(m_loan.assetAmounts[1]);
-           }
+                claimableAmount = 0;
+                _ownerContract.burn(m_loan.IDS[0]);
+            } else {
+                IDebitaOffer(debitaOfferV2).insertAssets(
+                    m_loan.assetAmounts[1]
+                );
+            }
         } else {
             transferAssets(
-            address(this),
-            msg.sender,
-            m_loan.assetAddresses[1],
-            m_loan.assetAmounts[1],
-            m_loan.isAssetNFT[1],
-            m_loan.nftData[1]
-        );
+                address(this),
+                msg.sender,
+                m_loan.assetAddresses[1],
+                m_loan.assetAmounts[1],
+                m_loan.isAssetNFT[1],
+                m_loan.nftData[1]
+            );
         }
-
-      
 
         emit collateralClaimed(msg.sender);
     }
@@ -321,7 +357,6 @@ contract DebitaV2Loan is ReentrancyGuard {
         address tokenAddress = m_loan.isAssetNFT[0]
             ? m_loan.interestAddress_Lending_NFT
             : m_loan.assetAddresses[0];
-
 
         transferAssets(
             address(this),
@@ -378,6 +413,20 @@ contract DebitaV2Loan is ReentrancyGuard {
     ) internal {
         ERC20(assetAddress).transferFrom(from, address(this), assetAmount);
         ERC20(assetAddress).transfer(feeAddress, fee);
+    }
+
+    function approveAssets(
+        address to,
+        address assetAddress,
+        uint256 assetAmount,
+        uint nftId,
+        bool isNFT
+    ) internal {
+        if (isNFT) {
+            IERC721(assetAddress).approve(to, nftId);
+        } else {
+            ERC20(assetAddress).approve(to, assetAmount);
+        }
     }
 
     /* 

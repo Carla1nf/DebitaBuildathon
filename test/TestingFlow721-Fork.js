@@ -55,9 +55,14 @@ const {
       contractLoansV2 = await ethers.getContractFactory("DebitaV2Loan");
       const owners = await ethers.getContractFactory("Ownerships");
       ownerships = await owners.deploy();
-      const factory = await ethers.getContractFactory("DebitaV2Factory");
+      const factory = await ethers.getContractFactory("DebitaV2OfferFactory");
       contractFactoryV2 = await factory.deploy();
+
+      // Connect both factories
       await debitaLoanFactoryV2.setDebitaOfferFactory(contractFactoryV2.target);
+
+      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
+
       const erc20 = await ethers.getContractFactory("ERC20DEBITA");
       contractOffersV2 = await ethers.getContractFactory("DebitaV2Offers");
       contractERC20 = await erc20.attach(equalAddress);
@@ -69,7 +74,7 @@ const {
       await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
   
   
-      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
+ 
       await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
   
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))

@@ -55,7 +55,7 @@ describe("Lock", function () {
     contractLoansV2 = await ethers.getContractFactory("DebitaV2Loan");
     const owners = await ethers.getContractFactory("Ownerships");
     ownerships = await owners.deploy();
-    const factory = await ethers.getContractFactory("DebitaV2Factory");
+    const factory = await ethers.getContractFactory("DebitaV2OfferFactory");
     contractFactoryV2 = await factory.deploy();
     await debitaLoanFactoryV2.setDebitaOfferFactory(contractFactoryV2.target);
     const erc20 = await ethers.getContractFactory("ERC20DEBITA");

@@ -6,7 +6,7 @@ import "./DebitaV2Offers.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 
-contract DebitaV2Factory is ReentrancyGuard {
+contract DebitaV2OfferFactory is ReentrancyGuard {
     event OfferCreated(
         address indexed owner,
         address indexed _add,
@@ -14,10 +14,10 @@ contract DebitaV2Factory is ReentrancyGuard {
     );
 
 
-    address owner;
+    address  owner;
     address public debitaLoanFactoryV2;
     mapping(address => bool) public isSenderAnOffer;
-    mapping(address => bool) private isSenderALoan;
+
 
     modifier onlyOffers() {
         require(
@@ -41,7 +41,7 @@ contract DebitaV2Factory is ReentrancyGuard {
         address[2] memory assetAddresses,
         uint256[2] memory assetAmounts,
         bool[2] memory isAssetNFT,
-        uint8 _interestRate,
+        uint16 _interestRate,
         uint[3] calldata nftData, // In case of NFT, nftData[0] = nftID, nftData[1] = value of veNFT (0 if not veNFT) nfData[2] = interest Amount
         uint8 _paymentCount,
         uint32 _timelap,

@@ -52,7 +52,7 @@ contract DebitaV2Offers is ReentrancyGuard {
 
     OfferInfo private storage_OfferInfo;
 
-    address private immutable owner;
+    address public immutable owner;
     address public debitaFactoryLoansV2;
     address private immutable debitaFactoryOfferV2;
     uint private totalLending;
@@ -82,7 +82,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         address[2] memory assetAddresses,
         uint256[2] memory assetAmounts,
         bool[2] memory isAssetNFT,
-        uint8 _interestRate,
+        uint16 _interestRate,
         uint[3] memory _nftData, // In case of NFT, nftData[0] = nftID, nftData[1] = value of veNFT (0 if not veNFT) nfData[2] = interest Amount, nfData[3] = interest
         uint8 _paymentCount,
         uint32 _timelap,
