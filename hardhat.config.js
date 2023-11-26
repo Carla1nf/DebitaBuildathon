@@ -8,9 +8,10 @@ module.exports = {
     settings: {
       optimizer: {
         enabled: true,
-        runs: 500, // Adjust the number of runs as per your requirements
+        runs: 1000, // Adjust the number of runs as per your requirements
       },
     },
+    allowUnlimitedContractSize: true
   },
   networks: {
    

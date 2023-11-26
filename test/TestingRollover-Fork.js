@@ -98,5 +98,10 @@ const {
       const createdLoanAddress = receipt_accept.logs[3].args[1];
       contractLoansV2 = await loanContract.attach(createdLoanAddress);
   
-    });
+    })
+
+    it("Pay loan and accept it again", async () => {
+        await contractERC20.connect(signerUser2).approve(contractLoansV2.target, valueInWei(10000));
+        await contractLoansV2.connect(signerUser2).payDebt();
+    })
 });

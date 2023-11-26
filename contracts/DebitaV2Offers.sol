@@ -11,7 +11,7 @@ interface IDebitaFactoryV2 is IERC721Receiver {
     ) external returns (uint[2] memory);
 
     function createLoanV2(
-       uint[2] calldata nftIDS,
+        uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
         bool[2] calldata isAssetNFT,
@@ -44,10 +44,14 @@ contract DebitaV2Offers is ReentrancyGuard {
         address interest_address; // in case lending is NFT else 0
     }
 
-    OfferInfo storage_OfferInfo;
+    OfferInfo private storage_OfferInfo;
 
-    address immutable owner;
-    address immutable debitaFactoryV2;
+    address private immutable owner;
+    address private immutable debitaFactoryV2;
+    uint private totalLending;
+    uint private totalCollateral;
+
+    mapping(address => bool) private isSenderALoan;
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function.");
@@ -56,6 +60,14 @@ contract DebitaV2Offers is ReentrancyGuard {
 
     modifier onlyActive() {
         require(storage_OfferInfo.isActive, "Offer is not active.");
+        _;
+    }
+
+    modifier onlyLoans() {
+        require(
+            isSenderALoan[msg.sender],
+            "Only loans can call this function."
+        );
         _;
     }
 
@@ -87,6 +99,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         });
         owner = _owner;
         debitaFactoryV2 = msg.sender;
+        totalLending = assetAmounts[0];
+        totalCollateral = assetAmounts[1];
     }
 
     function cancelOffer() external onlyOwner onlyActive nonReentrant {
@@ -110,8 +124,7 @@ contract DebitaV2Offers is ReentrancyGuard {
     ) public nonReentrant onlyActive {
         OfferInfo memory m_offer = storage_OfferInfo;
         require(m_offer.isLending, "Owner is not lender");
-        require(porcentage <= 1000, "Porcentage must be less than 100%");
-        require(porcentage >= 10, "Porcentage must be greater than 1%");
+        require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
 
         // [0]: Lending  [1]: Collateral
         uint256 lendingAmount = (m_offer.assetAmounts[0] * porcentage) / 1000;
@@ -148,7 +161,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.interest_address,
             address(this)
         );
-
+        isSenderALoan[loanAddress] = true;
         // Send collateral to loanAddress
         transferAssets(
             address(this),
@@ -176,14 +189,10 @@ contract DebitaV2Offers is ReentrancyGuard {
     ) public nonReentrant onlyActive {
         OfferInfo memory m_offer = storage_OfferInfo;
         require(!m_offer.isLending, "Owner is not borrower");
-        require(porcentage <= 1000, "Porcentage must be less than 100%");
-        require(porcentage >= 10, "Porcentage must be greater than 1%");
+        require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
 
         if (m_offer.isAssetNFT[0] || m_offer.isAssetNFT[1]) {
-            require(
-                porcentage == 1000,
-                "Porcentage must be 100% when lending/borrowing NFT"
-            );
+            require(porcentage == 1000, "Must be 100%");
         }
 
         // [0]: Lending  [1]: Collateral
@@ -223,6 +232,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.interest_address,
             address(this)
         );
+        isSenderALoan[loanAddress] = true;
 
         // Send collateral to loanAddress
         transferAssets(
@@ -243,6 +253,35 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT[0],
             sendingNFTID
         );
+    }
+
+    function insertAssets(uint assetAmount) public onlyLoans nonReentrant {
+        OfferInfo memory m_offer = storage_OfferInfo;
+        address assetAddress = m_offer.isLending
+            ? m_offer.assetAddresses[0]
+            : m_offer.assetAddresses[1];
+
+        transferAssets(
+            msg.sender,
+            address(this),
+            assetAddress,
+            assetAmount,
+            m_offer.isAssetNFT[m_offer.isLending ? 0 : 1],
+            m_offer.nftData[0]
+        );
+
+        m_offer.assetAmounts[m_offer.isLending ? 0 : 1] += assetAmount;
+
+        uint amountOfAssetAdded = m_offer.isLending
+            ? totalLending
+            : totalCollateral;
+        uint porcentageToAdd = (assetAmount * 10000000) / amountOfAssetAdded;
+
+        m_offer.assetAmounts[1] +=
+            (totalCollateral * porcentageToAdd) /
+            10000000;
+
+        storage_OfferInfo = m_offer;
     }
 
     function getOffersData() public view returns (OfferInfo memory) {

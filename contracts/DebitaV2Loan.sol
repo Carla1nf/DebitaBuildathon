@@ -2,7 +2,27 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
+import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
+
+interface IDebitaOffer {
+    struct OfferInfo {
+        address[2] assetAddresses;
+        uint256[2] assetAmounts;
+        bool[2] isAssetNFT;
+        uint16 interestRate;
+        uint[3] nftData;
+        uint8 paymentCount;
+        uint32 _timelap;
+        bool isLending;
+        bool isPerpetual;
+        bool isActive;
+        address interest_address;
+    }
+
+    function storage_OfferInfo() external view returns (OfferInfo memory);
+
+    function insertAssets(uint assetAmount) external;
+}
 
 interface IOwnerships {
     function ownerOf(uint id) external returns (address);
@@ -37,10 +57,10 @@ contract DebitaV2Loan is ReentrancyGuard {
     }
 
     LoanData storage_loanInfo;
-    address ownershipContract;
-    address debitaFactoryV2;
-    address debitaOfferV2;
-    uint constant interestFEE = 6;
+    address private ownershipContract;
+    address private debitaFactoryV2;
+    address private debitaOfferV2;
+    uint private constant interestFEE = 6;
     uint public claimableAmount;
 
     // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
@@ -54,7 +74,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         uint32 _paymentCount,
         uint32 _timelap,
         address _ownershipContract, // contract address for the ownerships
-        address[2] memory debitaAddresses , // contract address of DebitaV2Factory & offers address
+        address[2] memory debitaAddresses, // contract address of DebitaV2Factory & offers address
         address interest_address // 0x0 if lending is not NFT
     ) {
         uint totalAmountToPay = assetAmounts[0] +
@@ -173,20 +193,38 @@ contract DebitaV2Loan is ReentrancyGuard {
         // Mark the loan as executed
         storage_loanInfo.executed = true;
         address _feeAddress = IDebitaFactory(debitaFactoryV2).feeAddress();
-        
-        // If lending is nft, to claim the NFT collateral, the lender must pay 20% of the interest, otherwise 2% of the lending.
-       if(m_loan.isAssetNFT[1]) {
-         uint feeAmount = m_loan.isAssetNFT[0] ? 20 : 2;
-         uint amount = m_loan.isAssetNFT[0] ? m_loan.nftData[2] : m_loan.assetAmounts[0];
-         address feeToken = m_loan.isAssetNFT[0] ? m_loan.interestAddress_Lending_NFT : m_loan.assetAddresses[0]; 
-         uint fee = (amount * feeAmount) / 100;
 
-         // Sending Fee and then collateral
-         transferAssets(msg.sender, _feeAddress, feeToken, fee, false, 0);
-         transferAssets(address(this), msg.sender, m_loan.assetAddresses[1], m_loan.assetAmounts[1], true, m_loan.nftData[1]);
+        // If lending is nft, to claim the NFT collateral, the lender must pay 20% of the interest, otherwise 2% of the lending.
+        if (m_loan.isAssetNFT[1]) {
+            uint feeAmount = m_loan.isAssetNFT[0] ? 20 : 2;
+            uint amount = m_loan.isAssetNFT[0]
+                ? m_loan.nftData[2]
+                : m_loan.assetAmounts[0];
+            address feeToken = m_loan.isAssetNFT[0]
+                ? m_loan.interestAddress_Lending_NFT
+                : m_loan.assetAddresses[0];
+            uint fee = (amount * feeAmount) / 100;
+
+            // Sending Fee and then collateral
+            transferAssets(msg.sender, _feeAddress, feeToken, fee, false, 0);
+            transferAssets(
+                address(this),
+                msg.sender,
+                m_loan.assetAddresses[1],
+                m_loan.assetAmounts[1],
+                true,
+                m_loan.nftData[1]
+            );
         } else {
             uint fee = (m_loan.assetAmounts[1] * 2) / 100;
-            transferAssets(address(this), _feeAddress, m_loan.assetAddresses[1], fee, false, 0);
+            transferAssets(
+                address(this),
+                _feeAddress,
+                m_loan.assetAddresses[1],
+                fee,
+                false,
+                0
+            );
             transferAssets(
                 address(this),
                 msg.sender,
@@ -218,7 +256,17 @@ contract DebitaV2Loan is ReentrancyGuard {
         // Burn msg.sender NFT
         _ownerContract.burn(m_loan.IDS[1]);
 
-        transferAssets(
+        bool isPerpetual = IDebitaOffer(debitaOfferV2)
+            .storage_OfferInfo()
+            .isPerpetual;
+
+        bool isLendingOffer = IDebitaOffer(debitaOfferV2)
+            .storage_OfferInfo()
+            .isLending;
+
+        if (isPerpetual) {
+           if(isLendingOffer) {
+            transferAssets(
             address(this),
             msg.sender,
             m_loan.assetAddresses[1],
@@ -226,6 +274,27 @@ contract DebitaV2Loan is ReentrancyGuard {
             m_loan.isAssetNFT[1],
             m_loan.nftData[1]
         );
+
+           IDebitaOffer(debitaOfferV2).insertAssets(claimableAmount);
+
+           claimableAmount = 0;
+           _ownerContract.burn(m_loan.IDS[0]);
+
+           } else {
+            IDebitaOffer(debitaOfferV2).insertAssets(m_loan.assetAmounts[1]);
+           }
+        } else {
+            transferAssets(
+            address(this),
+            msg.sender,
+            m_loan.assetAddresses[1],
+            m_loan.assetAmounts[1],
+            m_loan.isAssetNFT[1],
+            m_loan.nftData[1]
+        );
+        }
+
+      
 
         emit collateralClaimed(msg.sender);
     }
@@ -255,7 +324,15 @@ contract DebitaV2Loan is ReentrancyGuard {
             ? m_loan.interestAddress_Lending_NFT
             : m_loan.assetAddresses[0];
 
-        transferAssets(address(this), msg.sender, tokenAddress, amount, false, 0);
+
+        transferAssets(
+            address(this),
+            msg.sender,
+            tokenAddress,
+            amount,
+            false,
+            0
+        );
 
         if (m_loan.isAssetNFT[0]) {
             transferAssets(
@@ -284,7 +361,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         uint nftID
     ) internal {
         if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, nftID);
+            IERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             if (from == address(this)) {
                 ERC20(assetAddress).transfer(to, assetAmount);
