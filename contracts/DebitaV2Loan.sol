@@ -39,6 +39,7 @@ contract DebitaV2Loan is ReentrancyGuard {
     LoanData storage_loanInfo;
     address ownershipContract;
     address debitaFactoryV2;
+    address debitaOfferV2;
     uint constant interestFEE = 6;
     uint public claimableAmount;
 
@@ -53,7 +54,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         uint32 _paymentCount,
         uint32 _timelap,
         address _ownershipContract, // contract address for the ownerships
-        address debitaV2, // contract address of DebitaV2Factory
+        address[2] memory debitaAddresses , // contract address of DebitaV2Factory & offers address
         address interest_address // 0x0 if lending is not NFT
     ) {
         uint totalAmountToPay = assetAmounts[0] +
@@ -75,7 +76,8 @@ contract DebitaV2Loan is ReentrancyGuard {
             executed: false
         });
         ownershipContract = _ownershipContract;
-        debitaFactoryV2 = debitaV2;
+        debitaFactoryV2 = debitaAddresses[0];
+        debitaOfferV2 = debitaAddresses[1];
     }
 
     /* 

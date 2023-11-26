@@ -96,7 +96,8 @@ const {
         1,
         86400,
         true,
-        equalAddress
+        equalAddress,
+        false
       );
 
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
@@ -108,7 +109,8 @@ const {
         1,
         86400,
         false,
-        equalAddress
+        equalAddress,
+        false
       );
 
       const receipt = await tx.wait();
@@ -135,13 +137,13 @@ const {
         const offerContract = await contractOffersV2.attach(createdOfferAddress);
     
         const offerDataBefore = await offerContract.getOffersData();
-        checkData(offerDataBefore, [8], [true]);
+        checkData(offerDataBefore, [9], [true]);
     
         await offerContract.connect(holderEQUAL).cancelOffer();
   
         expect(await contractERC721.ownerOf(nftid)).to.be.equal(holderEQUAL.address);
         const offerData = await offerContract.getOffersData();
-        checkData(offerData, [8], [false])
+        checkData(offerData, [9], [false])
         await expect(offerContract.connect(holderEQUAL).cancelOffer()).to.be.revertedWith("Offer is not active.");
       }
     })

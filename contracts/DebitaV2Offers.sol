@@ -11,13 +11,14 @@ interface IDebitaFactoryV2 is IERC721Receiver {
     ) external returns (uint[2] memory);
 
     function createLoanV2(
-        uint[2] calldata nftIDS,
+       uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
         uint256[2] calldata assetAmounts,
         bool[2] calldata isAssetNFT,
         uint32[3] calldata loanData, // [0] = interestRate, [1] = _paymentCount, [2] = _timelap
         uint256[3] calldata nftData,
-        address interest_address
+        address interest_address,
+        address offer_address
     ) external returns (address);
 }
 
@@ -38,6 +39,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint8 paymentCount;
         uint32 _timelap;
         bool isLending;
+        bool isPerpetual;
         bool isActive;
         address interest_address; // in case lending is NFT else 0
     }
@@ -66,6 +68,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint8 _paymentCount,
         uint32 _timelap,
         bool isLending,
+        bool perpetual,
         address _owner,
         address interest_address
     ) {
@@ -78,6 +81,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             paymentCount: _paymentCount,
             _timelap: _timelap,
             isLending: isLending,
+            isPerpetual: perpetual,
             isActive: true,
             interest_address: interest_address
         });
@@ -141,7 +145,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT,
             [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
             [m_offer.nftData[0], sendingNFTID, m_offer.nftData[2]],
-            m_offer.interest_address
+            m_offer.interest_address,
+            address(this)
         );
 
         // Send collateral to loanAddress
@@ -215,7 +220,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT,
             [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
             [sendingNFTID, m_offer.nftData[0], m_offer.nftData[2]],
-            m_offer.interest_address
+            m_offer.interest_address,
+            address(this)
         );
 
         // Send collateral to loanAddress

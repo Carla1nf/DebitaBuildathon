@@ -56,7 +56,8 @@ contract DebitaV2Factory is ReentrancyGuard {
         uint8 _paymentCount,
         uint32 _timelap,
         bool isLending,
-        address interest_address
+        address interest_address,
+        bool perpetual
 
     ) external nonReentrant returns (address) {
         if (
@@ -82,6 +83,7 @@ contract DebitaV2Factory is ReentrancyGuard {
             _paymentCount,
             _timelap,
             isLending,
+            perpetual,
             msg.sender,
             interest_address
         );
@@ -107,7 +109,8 @@ contract DebitaV2Factory is ReentrancyGuard {
         bool[2] calldata isAssetNFT,
         uint32[3] calldata loanData, // [0] = interestRate, [1] = _paymentCount, [2] = _timelap
         uint256[3] calldata nftData,
-        address interest_address
+        address interest_address,
+        address offer_address
     ) public onlyOffers nonReentrant returns (address) {
         DebitaV2Loan newLoan = new DebitaV2Loan(
             nftIDS,
@@ -119,7 +122,7 @@ contract DebitaV2Factory is ReentrancyGuard {
             loanData[1],
             loanData[2],
             ownershipAddress,
-            address(this),
+            [address(this), offer_address],
             interest_address
         );
         isSenderALoan[address(newLoan)] = true;
