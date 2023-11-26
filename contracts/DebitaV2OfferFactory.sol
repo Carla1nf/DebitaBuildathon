@@ -15,7 +15,7 @@ contract DebitaV2Factory is ReentrancyGuard {
 
 
     address owner;
-    address private ownershipAddress;
+    address public debitaLoanFactoryV2;
     mapping(address => bool) public isSenderAnOffer;
     mapping(address => bool) private isSenderALoan;
 
@@ -107,6 +107,10 @@ contract DebitaV2Factory is ReentrancyGuard {
         } else {
             IERC20(assetAddress).transferFrom(from, to, assetAmount);
         }
+    }
+    
+    function setLoanFactoryV2(address _loanFactory) external onlyOwner {
+        debitaLoanFactoryV2 = _loanFactory;
     }
 
    

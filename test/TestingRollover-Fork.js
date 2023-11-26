@@ -47,6 +47,8 @@ const {
 
 
     beforeEach(async function () {
+      const DebitaV2Factory = await ethers.getContractFactory("DebitaV2LoanFactory");
+      const debitaLoanFactoryV2 = await DebitaV2Factory.deploy();
       const erc721 = await ethers.getContractFactory("ABIERC721");
       contractERC721 = await erc721.deploy();
       // Deploy Contracts & Accounts
@@ -55,6 +57,7 @@ const {
       ownerships = await owners.deploy();
       const factory = await ethers.getContractFactory("DebitaV2Factory");
       contractFactoryV2 = await factory.deploy();
+      await debitaLoanFactoryV2.setDebitaOfferFactory(contractFactoryV2.target);
       const erc20 = await ethers.getContractFactory("ERC20DEBITA");
       const contractOffers = await ethers.getContractFactory("DebitaV2Offers");
       contractERC20 = await erc20.attach(equalAddress);
@@ -62,15 +65,20 @@ const {
       holderEQUAL = await ethers.getImpersonatedSigner(accounts);
   
       // Setup
-      await ownerships.setDebitaContract(contractFactoryV2.target);
-      await contractFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
+      await ownerships.setDebitaContract(debitaLoanFactoryV2.target);
+      await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
       await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
   
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))
   
-      await contractERC20.connect(signerUser2).approve(contractFactoryV2.target, valueInWei(10000))
+      await contractERC20.connect(signerUser2).approve(contractFactoryV2.target, valueInWei(10000));
+
+      await contractERC20.connect(signerUser2).approve(debitaLoanFactoryV2.target, valueInWei(10000));
+
+      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
       
   
+    
       const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
         [equalAddress, equalAddress],
         [1000, 1000],
@@ -90,18 +98,14 @@ const {
 
         
       await contractERC20.connect(signerUser2).approve(contractOffersV2.target, valueInWei(10000));
+      const data = await contractOffersV2.debitaFactoryLoansV2();
 
-      const tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(10, 0);
-
-      const receipt_accept = await tx_Accept.wait();
-
-      const createdLoanAddress = receipt_accept.logs[3].args[1];
-      contractLoansV2 = await loanContract.attach(createdLoanAddress);
-  
+      const tx_Accept  = await contractOffersV2.connect(signerUser2).acceptOfferAsBorrower(10, 0);
+ 
     })
 
     it("Pay loan and accept it again", async () => {
-        await contractERC20.connect(signerUser2).approve(contractLoansV2.target, valueInWei(10000));
-        await contractLoansV2.connect(signerUser2).payDebt();
+        await contractERC20.connect(signerUser2).approve(equalAddress, valueInWei(10000));
+
     })
 });

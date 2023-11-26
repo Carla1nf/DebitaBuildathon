@@ -19,7 +19,7 @@ interface IDebitaOffer {
         address interest_address;
     }
 
-    function storage_OfferInfo() external view returns (OfferInfo memory);
+    function getOffersData() external view returns (OfferInfo memory);
 
     function insertAssets(uint assetAmount) external;
 }
@@ -59,7 +59,7 @@ contract DebitaV2Loan is ReentrancyGuard {
     LoanData storage_loanInfo;
     address private ownershipContract;
     address private debitaFactoryV2;
-    address private debitaOfferV2;
+    address public debitaOfferV2;
     uint private constant interestFEE = 6;
     uint public claimableAmount;
 
@@ -255,14 +255,12 @@ contract DebitaV2Loan is ReentrancyGuard {
 
         // Burn msg.sender NFT
         _ownerContract.burn(m_loan.IDS[1]);
+        
+        IDebitaOffer.OfferInfo memory offerInfo = IDebitaOffer(debitaOfferV2).getOffersData();
 
-        bool isPerpetual = IDebitaOffer(debitaOfferV2)
-            .storage_OfferInfo()
-            .isPerpetual;
+        bool isPerpetual = offerInfo.isPerpetual;
 
-        bool isLendingOffer = IDebitaOffer(debitaOfferV2)
-            .storage_OfferInfo()
-            .isLending;
+        bool isLendingOffer = offerInfo.isLending;
 
         if (isPerpetual) {
            if(isLendingOffer) {

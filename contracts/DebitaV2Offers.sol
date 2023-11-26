@@ -5,7 +5,13 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
-interface IDebitaFactoryV2 is IERC721Receiver {
+interface IDebitaOfferFactoryV2 {
+    function debitaLoanFactoryV2() external returns (address);
+}
+
+interface IDebitaFactoryV2 is IERC721Receiver {   
+
+
     function mintOwnerships(
         address[2] calldata owners
     ) external returns (uint[2] memory);
@@ -47,7 +53,8 @@ contract DebitaV2Offers is ReentrancyGuard {
     OfferInfo private storage_OfferInfo;
 
     address private immutable owner;
-    address private immutable debitaFactoryV2;
+    address public debitaFactoryLoansV2;
+    address private immutable debitaFactoryOfferV2;
     uint private totalLending;
     uint private totalCollateral;
 
@@ -98,7 +105,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             interest_address: interest_address
         });
         owner = _owner;
-        debitaFactoryV2 = msg.sender;
+        debitaFactoryLoansV2 = IDebitaOfferFactoryV2(msg.sender).debitaLoanFactoryV2();
         totalLending = assetAmounts[0];
         totalCollateral = assetAmounts[1];
     }
@@ -148,10 +155,10 @@ contract DebitaV2Offers is ReentrancyGuard {
         );
         storage_OfferInfo = m_offer;
 
-        uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
+        uint[2] memory ids = IDebitaFactoryV2(debitaFactoryLoansV2).mintOwnerships(
             [owner, msg.sender]
         );
-        address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
+        address loanAddress = IDebitaFactoryV2(debitaFactoryLoansV2).createLoanV2(
             ids,
             m_offer.assetAddresses,
             [lendingAmount, collateralAmount],
@@ -218,11 +225,11 @@ contract DebitaV2Offers is ReentrancyGuard {
         );
         storage_OfferInfo = m_offer;
 
-        uint[2] memory ids = IDebitaFactoryV2(debitaFactoryV2).mintOwnerships(
+        uint[2] memory ids = IDebitaFactoryV2(debitaFactoryLoansV2).mintOwnerships(
             [msg.sender, owner]
         );
 
-        address loanAddress = IDebitaFactoryV2(debitaFactoryV2).createLoanV2(
+        address loanAddress = IDebitaFactoryV2(debitaFactoryLoansV2).createLoanV2(
             ids,
             m_offer.assetAddresses,
             [lendingAmount, collateralAmount],

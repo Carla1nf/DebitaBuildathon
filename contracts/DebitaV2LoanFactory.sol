@@ -17,7 +17,10 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
         uint borrowerId
     );
 
-    mapping(address => bool) private isSenderALoan;
+    address public feeAddress;
+
+
+    mapping(address => bool) public isSenderALoan;
     address owner;
     address private debitaOfferFactory;
     address private ownershipAddress;
@@ -25,6 +28,7 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
 
     constructor() {
         owner = msg.sender;
+        feeAddress = msg.sender;
     }
 
     modifier onlyOffers() {
@@ -103,5 +107,9 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
 
     function setOwnershipAddress(address ownershipAdd) public onlyOwner {
         ownershipAddress = ownershipAdd;
+    }
+
+    function setDebitaOfferFactory(address offerFactory) public onlyOwner {
+        debitaOfferFactory = offerFactory;
     }
 }

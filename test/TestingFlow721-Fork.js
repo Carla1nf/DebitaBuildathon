@@ -44,9 +44,11 @@ const {
       signer1 = signers[1];
       signerUser2 = signers[2];
     });
-
-
+  
+  
     beforeEach(async function () {
+      const DebitaV2Factory = await ethers.getContractFactory("DebitaV2LoanFactory");
+      const debitaLoanFactoryV2 = await DebitaV2Factory.deploy();
       const erc721 = await ethers.getContractFactory("ABIERC721");
       contractERC721 = await erc721.deploy();
       // Deploy Contracts & Accounts
@@ -55,6 +57,7 @@ const {
       ownerships = await owners.deploy();
       const factory = await ethers.getContractFactory("DebitaV2Factory");
       contractFactoryV2 = await factory.deploy();
+      await debitaLoanFactoryV2.setDebitaOfferFactory(contractFactoryV2.target);
       const erc20 = await ethers.getContractFactory("ERC20DEBITA");
       contractOffersV2 = await ethers.getContractFactory("DebitaV2Offers");
       contractERC20 = await erc20.attach(equalAddress);
@@ -62,8 +65,11 @@ const {
       holderEQUAL = await ethers.getImpersonatedSigner(accounts);
   
       // Setup
-      await ownerships.setDebitaContract(contractFactoryV2.target);
-      await contractFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
+      await ownerships.setDebitaContract(debitaLoanFactoryV2.target);
+      await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
+  
+  
+      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
       await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
   
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))
@@ -112,6 +118,10 @@ const {
         equalAddress,
         false
       );
+
+      await contractERC20.connect(signerUser2).approve(debitaLoanFactoryV2.target, valueInWei(10000));
+
+      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
 
       const receipt = await tx.wait();
       const receipt2 = await tx2.wait()
