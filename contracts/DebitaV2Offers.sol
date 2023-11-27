@@ -284,8 +284,12 @@ contract DebitaV2Offers is ReentrancyGuard {
             : totalCollateral;
         uint porcentageToAdd = (assetAmount * 10000000) / amountOfAssetAdded;
 
-        m_offer.assetAmounts[1] +=
-            (totalCollateral * porcentageToAdd) /
+        // Add the opposite asset
+        uint oppositeOfAmountAsset = m_offer.isLending
+            ? totalCollateral
+            : totalLending;
+        m_offer.assetAmounts[m_offer.isLending ? 1 : 0] +=
+            (oppositeOfAmountAsset * porcentageToAdd) /
             10000000;
 
         storage_OfferInfo = m_offer;

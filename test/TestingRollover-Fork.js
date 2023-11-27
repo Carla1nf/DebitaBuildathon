@@ -21,7 +21,10 @@ const {
     let holderEQUAL;
     let contractFactoryV2;
     let contractOffersV2;
+    let contractOffersV2_Secomd;
+
     let contractLoansV2;
+    let contractLoansV2_Second;
     let contractERC20;
     let ownerships;
     let contractERC721;
@@ -88,7 +91,7 @@ const {
     
       const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
         [equalAddress, equalAddress],
-        [1000, 1000],
+        [1000, 1500],
         [false, false],
         1000,
         [0, 0, 0],
@@ -99,12 +102,35 @@ const {
         true
       );
 
-      const receipt = await tx.wait();
+      const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+        [equalAddress, equalAddress],
+        [1000, 2000],
+        [false, false],
+        1000,
+        [0, 0, 0],
+        1,
+        86400,
+        false,
+        equalAddress,
+        true
+      );
+      
+    for(let i = 0; i < 2; i++) {
+      let _tx = i == 0 ? tx : tx2;
+      const receipt = await _tx.wait();
       const createdOfferAddress = receipt.logs[1].args[1];
-      contractOffersV2 = await contractOffers.attach(createdOfferAddress);
 
+    if(i == 0) {
+      contractOffersV2 = await contractOffers.attach(createdOfferAddress);
+    } else {
+      contractOffersV2_Secomd = await contractOffers.attach(createdOfferAddress);
+    }
+    
+    const address = i == 0 ? contractOffersV2.target : contractOffersV2_Secomd.target;
         
-      await contractERC20.connect(signerUser2).approve(contractOffersV2.target, valueInWei(10000));
+      await contractERC20.connect(signerUser2).approve(address, valueInWei(10000));
+
+     if(i == 0) {
       const data = await contractOffersV2.debitaFactoryLoansV2();
 
       const tx_Accept  = await contractOffersV2.connect(signerUser2).acceptOfferAsBorrower(1000, 0);
@@ -115,16 +141,43 @@ const {
         contractLoansV2 = await loanContract.attach(createdLoanAddress);
 
         await contractERC20.connect(signerUser2).approve(contractLoansV2.target, valueInWei(10000));
+     } else {
+      const data = await contractOffersV2_Secomd.debitaFactoryLoansV2();
+
+      const tx_Accept  = await contractOffersV2_Secomd.connect(signerUser2).acceptOfferAsLender(1000, 0);
+
+      const receipt_accept = await tx_Accept.wait()
+  
+        const createdLoanAddress = receipt_accept.logs[3].args[1];
+        contractLoansV2_Second = await loanContract.attach(createdLoanAddress);
+
+        await contractERC20.connect(signerUser2).approve(contractLoansV2_Second.target, valueInWei(10000));
+        await contractERC20.connect(holderEQUAL).approve(contractLoansV2_Second.target, valueInWei(10000));
+     }
  
+    }
     })
 
-    it("Pay loan and accept it again", async () => {
+    it("Pay loan and accept it again -- Lender ", async () => {
   
       await contractLoansV2.connect(signerUser2).payDebt();
       const DataBeforeOffer = await contractOffersV2.getOffersData();
       await contractLoansV2.connect(signerUser2).claimCollateralasBorrower();
       const DataAfterOffer = await contractOffersV2.getOffersData();
       expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(1094);
+      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(1641); // 1500 * 1.094
+
+    }),
+    it("Pay loan and accept it again -- Borrower ", async () => {
+      // Cambiar al second y probar
+  
+      await contractLoansV2_Second.connect(holderEQUAL).payDebt();
+      const DataBeforeOffer = await contractOffersV2_Secomd.getOffersData();
+      await contractLoansV2_Second.connect(holderEQUAL).claimCollateralasBorrower();
+      const DataAfterOffer = await contractOffersV2_Secomd.getOffersData();
+      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(2000);
+
+      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(1000);
 
     })
 });

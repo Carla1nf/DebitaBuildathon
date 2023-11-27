@@ -19,13 +19,6 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
     mapping(address => bool) public isSenderAnOffer;
 
 
-    modifier onlyOffers() {
-        require(
-            isSenderAnOffer[msg.sender],
-            "Only offers can call this function."
-        );
-        _;
-    }
 
     modifier onlyOwner() {
         require(owner == msg.sender, "Only offers can call this function.");

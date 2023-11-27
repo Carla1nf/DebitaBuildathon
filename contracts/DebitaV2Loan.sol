@@ -280,7 +280,7 @@ contract DebitaV2Loan is ReentrancyGuard {
                 approveAssets(
                     debitaOfferV2,
                     m_loan.assetAddresses[index],
-                    claimableAmount,
+                    m_loan.assetAmounts[index] + claimableAmount,
                     m_loan.nftData[index],
                     m_loan.isAssetNFT[index]
                 );
