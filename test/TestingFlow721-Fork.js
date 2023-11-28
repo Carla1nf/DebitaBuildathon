@@ -185,9 +185,9 @@ const {
         */
         let tx_Accept;
         if(i == 0) {
-          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(1000, sendingID);
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(1, sendingID);
         } else {
-          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(1000, sendingID);
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(1, sendingID);
         }
       
         const offerData = await offerContract.getOffersData();
@@ -261,9 +261,9 @@ const {
         */
         let tx_Accept;
         if(i == 0) {
-          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(1000, sendingID);
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsBorrower(1, sendingID);
         } else {
-          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(1000, sendingID);
+          tx_Accept  = await offerContract.connect(signerUser2).acceptOfferAsLender(1, sendingID);
         }
     
 

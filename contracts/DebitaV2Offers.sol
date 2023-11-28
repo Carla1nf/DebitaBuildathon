@@ -57,8 +57,17 @@ contract DebitaV2Offers is ReentrancyGuard {
     address private immutable debitaFactoryOfferV2;
     uint private totalLending;
     uint private totalCollateral;
+    uint lastEditedBlock;
 
     mapping(address => bool) private isSenderALoan;
+
+    modifier afterCooldown() {
+        require(
+            block.timestamp - lastEditedBlock > 5 minutes,
+            "Cooldown time is not over yet."
+        );
+        _;
+    }
 
     modifier onlyOwner() {
         require(msg.sender == owner, "Only owner can call this function.");
@@ -126,19 +135,20 @@ contract DebitaV2Offers is ReentrancyGuard {
 
     // 10 = 1% from the totalAmount
     function acceptOfferAsBorrower(
-        uint porcentage,
+        uint amount,
         uint sendingNFTID
-    ) public nonReentrant onlyActive {
+    ) public nonReentrant onlyActive afterCooldown {
         OfferInfo memory m_offer = storage_OfferInfo;
+        uint porcentage = (amount * 1000) / m_offer.assetAmounts[0];
         require(m_offer.isLending, "Owner is not lender");
         require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
+        require(m_offer.isActive, "Offer is not active");
 
         // [0]: Lending  [1]: Collateral
-        uint256 lendingAmount = (m_offer.assetAmounts[0] * porcentage) / 1000;
         uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
             1000;
 
-        m_offer.assetAmounts[0] -= lendingAmount;
+        m_offer.assetAmounts[0] -= amount;
         m_offer.assetAmounts[1] -= collateralAmount;
 
         if (m_offer.assetAmounts[0] == 0) {
@@ -161,7 +171,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         address loanAddress = IDebitaFactoryV2(debitaFactoryLoansV2).createLoanV2(
             ids,
             m_offer.assetAddresses,
-            [lendingAmount, collateralAmount],
+            [amount, collateralAmount],
             m_offer.isAssetNFT,
             [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
             [m_offer.nftData[0], sendingNFTID, m_offer.nftData[2]],
@@ -184,30 +194,30 @@ contract DebitaV2Offers is ReentrancyGuard {
             address(this),
             msg.sender,
             m_offer.assetAddresses[0],
-            lendingAmount,
+            amount,
             m_offer.isAssetNFT[0],
             m_offer.nftData[0]
         );
     }
 
     function acceptOfferAsLender(
-        uint porcentage,
+        uint amount,
         uint sendingNFTID
-    ) public nonReentrant onlyActive {
+    ) public nonReentrant onlyActive afterCooldown {
         OfferInfo memory m_offer = storage_OfferInfo;
+        uint porcentage = (amount * 1000) / m_offer.assetAmounts[0];
         require(!m_offer.isLending, "Owner is not borrower");
         require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
+        require(m_offer.isActive, "Offer is not active");
 
         if (m_offer.isAssetNFT[0] || m_offer.isAssetNFT[1]) {
             require(porcentage == 1000, "Must be 100%");
         }
 
-        // [0]: Lending  [1]: Collateral
-        uint256 lendingAmount = (m_offer.assetAmounts[0] * porcentage) / 1000;
         uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
             1000;
 
-        m_offer.assetAmounts[0] -= lendingAmount;
+        m_offer.assetAmounts[0] -= amount;
         m_offer.assetAmounts[1] -= collateralAmount;
 
         if (m_offer.assetAmounts[0] == 0) {
@@ -219,7 +229,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             msg.sender,
             address(this),
             m_offer.assetAddresses[0],
-            lendingAmount,
+            amount,
             m_offer.isAssetNFT[0],
             sendingNFTID
         );
@@ -232,7 +242,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         address loanAddress = IDebitaFactoryV2(debitaFactoryLoansV2).createLoanV2(
             ids,
             m_offer.assetAddresses,
-            [lendingAmount, collateralAmount],
+            [amount, collateralAmount],
             m_offer.isAssetNFT,
             [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
             [sendingNFTID, m_offer.nftData[0], m_offer.nftData[2]],
@@ -256,7 +266,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             address(this),
             owner,
             m_offer.assetAddresses[0],
-            lendingAmount,
+            amount,
             m_offer.isAssetNFT[0],
             sendingNFTID
         );
@@ -293,6 +303,62 @@ contract DebitaV2Offers is ReentrancyGuard {
             10000000;
 
         storage_OfferInfo = m_offer;
+    }
+
+// ----- TEST IT -----
+// _newLoanData: [0] = interestRate, [1] = _paymentCount, [2] = _timelap
+// _newAssetAmounts: [0] = lendingAmount, [1] = collateralAmount
+    function editOffer(
+        uint[2] calldata _newAssetAmounts,
+        uint[3] calldata _newLoanData,
+        uint veValue,
+        uint _newInterestRateForNFT
+    ) public onlyOwner() {
+        OfferInfo memory m_offer = storage_OfferInfo;
+        uint index = m_offer.isLending ? 0 : 1;
+        lastEditedBlock = block.timestamp;
+        if(
+            _newLoanData[2] < 1 days || 
+            _newLoanData[2] > 365 days ||
+            _newAssetAmounts[0] == 0 ||
+            _newLoanData[1] > 10 ||
+            _newLoanData[1] == 0 ||
+            _newLoanData[1] > _newAssetAmounts[0] ||
+            _newLoanData[0] > 10000 || 
+            m_offer.isAssetNFT[0] && _newLoanData[1] > 1 ||
+            m_offer.isAssetNFT[0] && _newAssetAmounts[0] > 1 ||
+            m_offer.isAssetNFT[1] && _newAssetAmounts[1] > 1 
+        ) {
+            revert();
+        }
+      
+        address depositedAddress =  m_offer.assetAddresses[index];
+        uint256 depositedAmount = m_offer.assetAmounts[index];
+
+        if (m_offer.isAssetNFT[index]) {
+            m_offer.nftData[1] = veValue;
+            m_offer.nftData[2] = _newInterestRateForNFT;
+            
+        } else {
+          transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
+        }
+        
+
+
+
+        m_offer.assetAmounts[0] = _newAssetAmounts[0];
+        m_offer.assetAmounts[1] = _newAssetAmounts[1];
+        m_offer.interestRate = uint16(_newLoanData[0]);
+        m_offer.paymentCount = uint8(_newLoanData[1]);
+        m_offer._timelap = uint32(_newLoanData[2]);
+
+
+        storage_OfferInfo = m_offer;
+
+        if(!m_offer.isAssetNFT[index]) {
+            transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
+        }
+      
     }
 
     function getOffersData() public view returns (OfferInfo memory) {

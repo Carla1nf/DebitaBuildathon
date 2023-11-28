@@ -202,12 +202,12 @@ describe("Lock", function () {
         const createdLoanAddress = receipt_accept.logs[3].args[1];
         const loanContract = await contractLoansV2.attach(createdLoanAddress);
         
-        checkData(offerData, [1], [[99, 198]]);
-        expect(await contractERC20.balanceOf(createdLoanAddress)).to.be.equal(2);
+        checkData(offerData, [1], [[90, 180]]);
+        expect(await contractERC20.balanceOf(createdLoanAddress)).to.be.equal(20);
         if(i == 0) {
-          expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(99);
+          expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(90);
         } else {
-          expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(198);
+          expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(180);
         }
   
         const loanData = await loanContract.getLoanData();
@@ -225,7 +225,7 @@ describe("Lock", function () {
         const addOffer = await loanContract.debitaOfferV2();
         await loanContract.connect(borrower).claimCollateralasBorrower();
         const balanceAfter = await contractERC20.balanceOf(borrower.address);
-        expect(balanceAfter - (balanceBefore)).to.be.equal(2);
+        expect(balanceAfter - (balanceBefore)).to.be.equal(20);
         
     
         /* 
@@ -235,7 +235,7 @@ describe("Lock", function () {
         const debt = await loanContract.claimableAmount();
         await loanContract.connect(lender).claimDebt();
         const balanceAfterDebt = await contractERC20.balanceOf(lender.address);
-        expect(balanceAfterDebt - (balanceBeforeDebt)).to.be.equal(1);
+        expect(balanceAfterDebt - (balanceBeforeDebt)).to.be.equal(10);
       }
      
     }),
@@ -285,11 +285,10 @@ describe("Lock", function () {
       await contractERC20.connect(lender).approve(offerContract.target, valueInWei(10000));
       let tx_Accept;
      if(i == 0) {
-      await offerContract.connect(borrower).acceptOfferAsBorrower(10, 0);
-      tx_Accept = await offerContract.connect(borrower).acceptOfferAsBorrower(1000, 0);
+      tx_Accept = await offerContract.connect(borrower).acceptOfferAsBorrower(100, 0);
      } else {
-      await offerContract.connect(lender).acceptOfferAsLender(10, 0);
-      tx_Accept = await offerContract.connect(lender).acceptOfferAsLender(1000, 0);
+
+      tx_Accept = await offerContract.connect(lender).acceptOfferAsLender(100, 0);
      }
 
     
@@ -305,7 +304,7 @@ describe("Lock", function () {
       const balanceBefore = await contractERC20.balanceOf(lender.address);
       await loanContract.connect(lender).claimCollateralasLender();
       const balanceAfter = await contractERC20.balanceOf(lender.address);
-      expect(balanceAfter - (balanceBefore)).to.be.equal(198 - (Math.floor((198 * 2) / 100)));
+      expect(balanceAfter - (balanceBefore)).to.be.equal(200 - (Math.floor((200 * 2) / 100)));
       }
     })
 });
