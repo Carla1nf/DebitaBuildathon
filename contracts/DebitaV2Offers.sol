@@ -354,6 +354,8 @@ contract DebitaV2Offers is ReentrancyGuard {
 
 
         storage_OfferInfo = m_offer;
+        totalCollateral = _newAssetAmounts[1];
+        totalLending = _newAssetAmounts[0];
 
         if(!m_offer.isAssetNFT[index]) {
             transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);

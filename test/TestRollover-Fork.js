@@ -168,7 +168,7 @@ const {
       expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(1641); // 1500 * 1.094
 
     }),
-    it("Pay loan and accept it again -- Borrower ", async () => {
+    it("Pay loan and accept it again -- Lender ", async () => {
       // Cambiar al second y probar
   
       await contractLoansV2_Second.connect(holderEQUAL).payDebt();
@@ -179,7 +179,39 @@ const {
 
       expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(1000);
 
+    }),
+
+    it("Edit Offer and check new ratio", async () => {
+      await contractERC20.connect(holderEQUAL).approve(contractOffersV2.target, valueInWei(10000));
+      await contractOffersV2.connect(holderEQUAL).editOffer(
+        [750, 1500],
+        [2000, 1, 86400],
+        0,
+        0
+      );
+      await contractLoansV2.connect(signerUser2).payDebt();
+      const DataBeforeOffer = await contractOffersV2.getOffersData();
+      await contractLoansV2.connect(signerUser2).claimCollateralasBorrower();
+      const DataAfterOffer = await contractOffersV2.getOffersData();
+      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(Math.floor(1094));
+      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(Math.floor(Math.floor(1094 * 10000000 / 750) * 1500 / 10000000));
+    }),
+    it("Edit Offer and check new ratio -- Borrower", async () => {
+      await contractERC20.connect(holderEQUAL).approve(contractOffersV2_Secomd.target, valueInWei(10000));
+      await contractOffersV2_Secomd.connect(holderEQUAL).editOffer(
+        [1000, 4000],
+        [1000, 1, 86400],
+        0,
+        0
+      );
+      await contractLoansV2_Second.connect(holderEQUAL).payDebt();
+      const DataBeforeOffer = await contractOffersV2_Secomd.getOffersData();
+      await contractLoansV2_Second.connect(holderEQUAL).claimCollateralasBorrower();
+      const DataAfterOffer = await contractOffersV2_Secomd.getOffersData();
+ 
+      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(2000);
+
+      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(500);
     })
 
-    // EDIT OFFER AND TRY ROLL OVER
 });
