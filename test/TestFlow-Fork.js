@@ -90,12 +90,12 @@ describe("Lock", function () {
       [100, 100],
       [false, false],
       10,
-      [0,0,0],
+      [0,0],
+      0,
       1,
       86400,
-      true,
-      equalAddress,
-      false
+      [true, false],
+      equalAddress
     );
 
     const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
@@ -103,12 +103,12 @@ describe("Lock", function () {
       [100, 100],
       [false, false],
       10,
-      [0,0,0],
+      [0,0],
+      0,
       1,
       86400,
-      false,
-      equalAddress,
-      false
+      [false, false],
+      equalAddress
     );
     // Get events
     const receipt = await tx.wait()
@@ -129,7 +129,7 @@ describe("Lock", function () {
       const offerContract = await contractOffersV2.attach(createdOfferAddress);
   
       const offerDataBefore = await offerContract.getOffersData();
-      checkData(offerDataBefore, [9], [true]);
+      checkData(offerDataBefore, [10], [true]);
   
       await offerContract.connect(holderEQUAL).cancelOffer();
   
@@ -148,12 +148,12 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        [0,0,0],
+        [0,0],
+        0,
         1,
         86400,
-        true,
-        equalAddress,
-        false
+        [true,false],
+        equalAddress
       );
 
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
@@ -161,12 +161,12 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        [0,0,0],
+        [0,0],
+        0,
         1,
         86400,
-        false,
-        equalAddress,
-        false
+        [false, false],
+        equalAddress
       );
       // Get events
       const receipt = await tx.wait()
@@ -246,12 +246,12 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        [0,0,0],
+        [0,0],
+        0,
         1,
         86400,
-        true,
-        equalAddress,
-        false
+        [true,false],
+        equalAddress
       );
 
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
@@ -259,12 +259,12 @@ describe("Lock", function () {
         [100, 200],
         [false, false],
         10,
-        [0,0,0],
+        [0,0],
+        0,
         1,
         86400,
-        false,
-        equalAddress,
-        false
+        [false, false],
+        equalAddress
       );
 
       const receipt = await tx.wait();

@@ -103,25 +103,26 @@ const {
         [1, 1],
         [true, true],
         10,
-        [2, 0, 100],
+        [2, 100],
+        0,
         1,
         86400,
-        true,
-        equalAddress,
-        false
+      [true, false],
+      equalAddress
       );
 
+     
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
         [contractERC721.target, contractERC721.target],
         [1, 1],
         [true, true],
         10,
-        [3,0, 100],
+        [3, 100],
+        0,
         1,
         86400,
-        false,
-        equalAddress,
-        false
+        [false, false],
+        equalAddress
       );
 
       await contractERC20.connect(signerUser2).approve(debitaLoanFactoryV2.target, valueInWei(10000));
@@ -152,13 +153,13 @@ const {
         const offerContract = await contractOffersV2.attach(createdOfferAddress);
     
         const offerDataBefore = await offerContract.getOffersData();
-        checkData(offerDataBefore, [9], [true]);
+        checkData(offerDataBefore, [10], [true]);
     
         await offerContract.connect(holderEQUAL).cancelOffer();
   
         expect(await contractERC721.ownerOf(nftid)).to.be.equal(holderEQUAL.address);
         const offerData = await offerContract.getOffersData();
-        checkData(offerData, [9], [false])
+        checkData(offerData, [10], [false])
         await expect(offerContract.connect(holderEQUAL).cancelOffer()).to.be.revertedWith("Offer is not active.");
       }
     })

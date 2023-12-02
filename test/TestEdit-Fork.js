@@ -94,12 +94,12 @@ const {
         [1000, 1500],
         [false, false],
         1000,
-        [0, 100, 10000],
+        [0, 10000],
+        100,
         1,
         86400,
-        true,
-        equalAddress,
-        true
+        [true, true],
+        equalAddress
       );
 
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
@@ -107,12 +107,12 @@ const {
         [1000, 2000],
         [false, false],
         1000,
-        [0, 0, 0],
+        [0, 0],
+        0,
         1,
         86400,
-        false,
-        equalAddress,
-        true
+        [false, true],
+        equalAddress
       );
       
     for(let i = 0; i < 2; i++) {
@@ -146,7 +146,7 @@ const {
       );
       const offerData = await contractOffersV2.getOffersData();
       const balanceAfter = await contractERC20.balanceOf(holderEQUAL.address);
-      checkData(offerData, [0, 1, 4], [[equalAddress, equalAddress], [800, 2000], [0, 100, 1000]])
+      checkData(offerData, [0, 1, 4], [[equalAddress, equalAddress], [800, 2000], [0, 1000]])
       expect(balanceAfter - balanceBefore).to.be.equal(200);
     }),
 
@@ -160,7 +160,7 @@ const {
         );
         const offerData = await contractOffersV2_Secomd.getOffersData();
         const balanceAfter = await contractERC20.balanceOf(holderEQUAL.address);
-        checkData(offerData, [0, 1, 4], [[equalAddress, equalAddress], [1000, 1800], [0, 0, 0]])
+        checkData(offerData, [0, 1, 4], [[equalAddress, equalAddress], [1000, 1800], [0, 0]])
         expect(balanceAfter - balanceBefore).to.be.equal(200);
     })
 })

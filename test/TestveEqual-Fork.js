@@ -29,7 +29,9 @@ const {
     let contractERC721;
     let createdReceipt;
     let contractVeEqual;
-  
+    let veEqualID;
+    let veEqualID_smallAmount;
+
     function checkData(receipt, indexs, values) {
       for (let i = 0; i < indexs.length; i++) {
         if ((typeof receipt[indexs[i]]) == "object") {
@@ -67,7 +69,7 @@ const {
 
 
       const erc20 = await ethers.getContractFactory("ERC20DEBITA");
-      const contractOffers = await ethers.getContractFactory("DebitaV2Offers");
+      
       contractERC20 = await erc20.attach(equalAddress);
       const accounts = "0x89A7c531178CD6EB01994361eFc0d520a3a702C6";
       holderEQUAL = await ethers.getImpersonatedSigner(accounts);
@@ -88,21 +90,6 @@ const {
       const veEqualContract = await ethers.getContractFactory("veEQUAL");
       contractVeEqual = await veEqualContract.attach(veEqualAddress);
 
-      
-  
-    
-    /*  const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
-        [equalAddress, equalAddress],
-        [1000, 1500],
-        [false, false],
-        1000,
-        [0, 0, 0],
-        1,
-        86400,
-        true,
-        equalAddress,
-        true
-      ); */
 
     }),
 
@@ -112,8 +99,73 @@ const {
     }),
 
     it("create Lock", async function () {
-     await contractERC20.connect(holderEQUAL).approve(contractVeEqual.address, valueInWei(10000)); 
-     await contractVeEqual.connect(holderEQUAL).create_lock(100, 864000);
-    })
+     await contractERC20.connect(holderEQUAL).approve(contractVeEqual.target, valueInWei(10000)); 
 
+     await contractVeEqual.connect(holderEQUAL).create_lock(100, 864000);
+     const supplyUser = await contractVeEqual.tokensOfOwner(holderEQUAL.address);
+     const tokenId = Number(supplyUser[supplyUser.length - 1])
+     veEqualID_smallAmount = tokenId;
+     const lockedAmount = await contractVeEqual.locked(tokenId);
+     expect(lockedAmount[0]).to.be.equal(100);
+
+     await contractVeEqual.connect(holderEQUAL).create_lock(valueInWei(100), 864000);
+     const secondUserSupply = await contractVeEqual.tokensOfOwner(holderEQUAL.address);
+     const secondTokenId = Number(secondUserSupply[secondUserSupply.length - 1]);
+     veEqualID = secondTokenId;
+     const votingPower = await contractVeEqual.balanceOfNFT(secondTokenId);
+     console.log(votingPower);
+    }),
+    it("Create offer, and put lock as collateral", async function () {
+
+
+     await contractFactoryV2.setVeNFT(veEqualAddress);
+
+     const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+      [veEqualAddress, equalAddress],
+      [1, 1500],
+      [true, false],
+      1000,
+      [0, 10000],
+      1000,
+      1,
+      86400,
+      [false, true],
+      equalAddress
+    );
+     const receipt = await tx.wait();
+    const createdOfferAddress = receipt.logs[1].args[1];
+    const contractOffers = await ethers.getContractFactory("DebitaV2Offers");
+    contractOffersV2 = await contractOffers.attach(createdOfferAddress);
+
+    await contractVeEqual.connect(holderEQUAL).approve(contractOffersV2.target, veEqualID);
+
+    await contractOffersV2.connect(holderEQUAL).acceptOfferAsLender(1, veEqualID); 
+
+    }),
+
+    it("Create offer, and try to put lock as collateral with low amount", async function () {
+      await contractFactoryV2.setVeNFT(veEqualAddress);
+
+      const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+       [veEqualAddress, equalAddress],
+       [1, 1500],
+       [true, false],
+       1000,
+       [0, 10000],
+       1000,
+       1,
+       86400,
+       [false, true],
+       equalAddress
+     );
+      const receipt = await tx.wait();
+     const createdOfferAddress = receipt.logs[1].args[1];
+     const contractOffers = await ethers.getContractFactory("DebitaV2Offers");
+     contractOffersV2 = await contractOffers.attach(createdOfferAddress);
+ 
+     await contractVeEqual.connect(holderEQUAL).approve(contractOffersV2.target, veEqualID_smallAmount);
+      // locked amount of veEqualID_smallAmount == 100, but we need 1000
+     await expect(contractOffersV2.connect(holderEQUAL).acceptOfferAsLender(1, veEqualID_smallAmount)).to.be.reverted;
+    })
+    
 });

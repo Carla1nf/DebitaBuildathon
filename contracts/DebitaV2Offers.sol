@@ -5,8 +5,19 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
 
+interface veSolid {
+     struct LockedBalance {
+        int128 amount;
+        uint end;
+    }
+
+    function locked(uint id) external view returns(LockedBalance memory);
+}
+
 interface IDebitaOfferFactoryV2 {
     function debitaLoanFactoryV2() external returns (address);
+
+    function isContractVeNFT(address _assetAddress) external returns (bool);
 }
 
 interface IDebitaFactoryV2 is IERC721Receiver {   
@@ -41,7 +52,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256[2] assetAmounts;
         bool[2] isAssetNFT;
         uint16 interestRate;
-        uint[3] nftData; // [0]: the id of the NFT that the owner transfered here (could be borrower or lender) in case lending/borrowing is NFT else 0 [1]: value of veNFT (0 if not veNFT) [2]: interest Amount
+        uint[2] nftData; // [0]: the id of the NFT that the owner transfered here (could be borrower or lender) in case lending/borrowing is NFT else 0 , [1]: interest Amount
+        int128 valueOfVeNFT;
         uint8 paymentCount;
         uint32 _timelap;
         bool isLending;
@@ -92,13 +104,12 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256[2] memory assetAmounts,
         bool[2] memory isAssetNFT,
         uint16 _interestRate,
-        uint[3] memory _nftData, // In case of NFT, nftData[0] = nftID, nftData[1] = value of veNFT (0 if not veNFT) nfData[2] = interest Amount, nfData[3] = interest
+        uint[2] memory _nftData, // In case of NFT, nftData[0] = nftID, nfData[1] = interest Amount
+        int128 veValue,
         uint8 _paymentCount,
         uint32 _timelap,
-        bool isLending,
-        bool perpetual,
-        address _owner,
-        address interest_address
+        bool[2] memory loanBooleans, // isLending, isPerpetual
+        address[2] memory loanExtraAddresses // [0]: owner, [1]: interest_address
     ) {
         storage_OfferInfo = OfferInfo({
             assetAddresses: assetAddresses,
@@ -106,15 +117,17 @@ contract DebitaV2Offers is ReentrancyGuard {
             isAssetNFT: isAssetNFT,
             interestRate: _interestRate,
             nftData: _nftData,
+            valueOfVeNFT: veValue,
             paymentCount: _paymentCount,
             _timelap: _timelap,
-            isLending: isLending,
-            isPerpetual: perpetual,
+            isLending: loanBooleans[0],
+            isPerpetual: loanBooleans[1],
             isActive: true,
-            interest_address: interest_address
+            interest_address: loanExtraAddresses[1]
         });
-        owner = _owner;
+        owner = loanExtraAddresses[0];
         debitaFactoryLoansV2 = IDebitaOfferFactoryV2(msg.sender).debitaLoanFactoryV2();
+        debitaFactoryOfferV2 = msg.sender;
         totalLending = assetAmounts[0];
         totalCollateral = assetAmounts[1];
     }
@@ -140,6 +153,14 @@ contract DebitaV2Offers is ReentrancyGuard {
     ) public nonReentrant onlyActive afterCooldown {
         OfferInfo memory m_offer = storage_OfferInfo;
         uint porcentage = (amount * 1000) / m_offer.assetAmounts[0];
+
+        if(IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[1])) {
+            veSolid.LockedBalance memory lockedData = veSolid(m_offer.assetAddresses[1]).locked(sendingNFTID);
+            int128 lockedAmount = lockedData.amount;
+
+            require(lockedAmount >= (m_offer.valueOfVeNFT), "Must be greater than veNFT value");
+        }
+
         require(m_offer.isLending, "Owner is not lender");
         require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
         require(m_offer.isActive, "Offer is not active");
@@ -174,7 +195,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             [amount, collateralAmount],
             m_offer.isAssetNFT,
             [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
-            [m_offer.nftData[0], sendingNFTID, m_offer.nftData[2]],
+            [m_offer.nftData[0], sendingNFTID, m_offer.nftData[1]],
             m_offer.interest_address,
             address(this)
         );
@@ -206,6 +227,13 @@ contract DebitaV2Offers is ReentrancyGuard {
     ) public nonReentrant onlyActive afterCooldown {
         OfferInfo memory m_offer = storage_OfferInfo;
         uint porcentage = (amount * 1000) / m_offer.assetAmounts[0];
+
+        if(IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[0])) {
+            veSolid.LockedBalance memory lockedData = veSolid(m_offer.assetAddresses[0]).locked(sendingNFTID);
+            int128 lockedAmount = lockedData.amount;
+
+            require(lockedAmount >= (m_offer.valueOfVeNFT), "Must be greater than veNFT value");
+        }
         require(!m_offer.isLending, "Owner is not borrower");
         require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
         require(m_offer.isActive, "Offer is not active");
@@ -245,7 +273,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             [amount, collateralAmount],
             m_offer.isAssetNFT,
             [m_offer.interestRate, m_offer.paymentCount, m_offer._timelap],
-            [sendingNFTID, m_offer.nftData[0], m_offer.nftData[2]],
+            [sendingNFTID, m_offer.nftData[0], m_offer.nftData[1]],
             m_offer.interest_address,
             address(this)
         );
@@ -305,13 +333,14 @@ contract DebitaV2Offers is ReentrancyGuard {
         storage_OfferInfo = m_offer;
     }
 
-// ----- TEST IT -----
+
+
 // _newLoanData: [0] = interestRate, [1] = _paymentCount, [2] = _timelap
 // _newAssetAmounts: [0] = lendingAmount, [1] = collateralAmount
     function editOffer(
         uint[2] calldata _newAssetAmounts,
         uint[3] calldata _newLoanData,
-        uint veValue,
+        int128 veValue,
         uint _newInterestRateForNFT
     ) public onlyOwner() {
         OfferInfo memory m_offer = storage_OfferInfo;
@@ -336,8 +365,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint256 depositedAmount = m_offer.assetAmounts[index];
 
         if (m_offer.isAssetNFT[index]) {
-            m_offer.nftData[1] = veValue;
-            m_offer.nftData[2] = _newInterestRateForNFT;
+            m_offer.valueOfVeNFT = veValue;
+            m_offer.nftData[1] = _newInterestRateForNFT;
             
         } else {
           transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);

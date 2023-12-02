@@ -5,7 +5,6 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./DebitaV2Offers.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
-
 contract DebitaV2OfferFactory is ReentrancyGuard {
     event OfferCreated(
         address indexed owner,
@@ -13,12 +12,10 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         bool indexed senderIsLender
     );
 
-
-    address  owner;
+    address owner;
     address public debitaLoanFactoryV2;
     mapping(address => bool) public isSenderAnOffer;
-
-
+    mapping(address => bool) public isContractVeNFT;
 
     modifier onlyOwner() {
         require(owner == msg.sender, "Only offers can call this function.");
@@ -35,13 +32,12 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         uint256[2] memory assetAmounts,
         bool[2] memory isAssetNFT,
         uint16 _interestRate,
-        uint[3] calldata nftData, // In case of NFT, nftData[0] = nftID, nftData[1] = value of veNFT (0 if not veNFT) nfData[2] = interest Amount
+        uint[2] calldata nftData, // In case of NFT, nftData[0] = nftID, nfData[1] = interest Amount
+        int128 veValue,
         uint8 _paymentCount,
         uint32 _timelap,
-        bool isLending,
-        address interest_address,
-        bool perpetual
-
+        bool[2] memory loanBooleans,  // isLending, isPerpetual
+        address interest_address
     ) external nonReentrant returns (address) {
         if (
             _timelap < 1 days ||
@@ -51,9 +47,9 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             _paymentCount == 0 ||
             _paymentCount > assetAmounts[0] ||
             _interestRate > 10000 ||
-            isAssetNFT[0] && _paymentCount > 1 || 
-            isAssetNFT[0] && assetAmounts[0] > 1 || 
-            isAssetNFT[1] && assetAmounts[1] > 1 
+            (isAssetNFT[0] && _paymentCount > 1) ||
+            (isAssetNFT[0] && assetAmounts[0] > 1) ||
+            (isAssetNFT[1] && assetAmounts[1] > 1)
         ) {
             revert();
         }
@@ -64,29 +60,26 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             isAssetNFT,
             _interestRate,
             nftData,
+            veValue,
             _paymentCount,
             _timelap,
-            isLending,
-            perpetual,
-            msg.sender,
-            interest_address
+            loanBooleans,
+            [msg.sender, interest_address]
         );
-        uint index = isLending ? 0 : 1;
+        uint index = loanBooleans[0] ? 0 : 1;
         transferAssets(
-                msg.sender,
-                address(newOfferContract),
-                assetAddresses[index],
-                assetAmounts[index],
-                isAssetNFT[index],
-                nftData[0]
-            );
+            msg.sender,
+            address(newOfferContract),
+            assetAddresses[index],
+            assetAmounts[index],
+            isAssetNFT[index],
+            nftData[0]
+        );
 
         isSenderAnOffer[address(newOfferContract)] = true;
         emit OfferCreated(msg.sender, address(newOfferContract), true);
         return address(newOfferContract);
     }
-
- 
 
     function transferAssets(
         address from,
@@ -102,10 +95,12 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             IERC20(assetAddress).transferFrom(from, to, assetAmount);
         }
     }
-    
+
     function setLoanFactoryV2(address _loanFactory) external onlyOwner {
         debitaLoanFactoryV2 = _loanFactory;
     }
 
-   
+    function setVeNFT(address _veNFT) external onlyOwner {
+        isContractVeNFT[_veNFT] = true;
+    }
 }

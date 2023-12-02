@@ -94,12 +94,12 @@ const {
         [1000, 1500],
         [false, false],
         1000,
-        [0, 0, 0],
+        [0, 0],
+        0,
         1,
         86400,
-        true,
-        equalAddress,
-        true
+        [true, true],
+        equalAddress
       );
 
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
@@ -107,12 +107,12 @@ const {
         [1000, 2000],
         [false, false],
         1000,
-        [0, 0, 0],
+        [0, 0],
+        0,
         1,
         86400,
-        false,
-        equalAddress,
-        true
+        [false, true],
+        equalAddress
       );
       
     for(let i = 0; i < 2; i++) {
