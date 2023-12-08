@@ -36,15 +36,26 @@ interface IOwnerships {
 
 interface IDebitaLoanFactory {
     function feeAddress() external returns (address);
- 
 }
 
 interface veNFT {
-    function voter() external returns(address);
+    function voter() external returns (address);
+
+    function increase_unlock_time(uint tokenId, uint _lock_duration) external;
 }
 
 interface voterContract {
-    function vote(uint tokenId, address[] memory _poolVote, uint[] memory _weights) external;
+    function vote(
+        uint tokenId,
+        address[] memory _poolVote,
+        uint[] memory _weights
+    ) external;
+
+    function claimBribes(
+        address[] memory _bribes,
+        address[][] memory _tokens,
+        uint tokenId
+    ) external;
 }
 
 contract DebitaV2Loan is ReentrancyGuard {
@@ -74,6 +85,13 @@ contract DebitaV2Loan is ReentrancyGuard {
     uint private constant interestFEE = 6;
     uint public claimableAmount;
 
+    modifier onlyActive() {
+        require(
+            !storage_loanInfo.executed,
+            "Loan is not active"
+        );
+        _;
+    }
     // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
     constructor(
         uint[2] memory nftIDS,
@@ -117,7 +135,7 @@ contract DebitaV2Loan is ReentrancyGuard {
     -------- -------- -------- -------- -------- -------- -------- 
     
     */
-    function payDebt() public nonReentrant {
+    function payDebt() public nonReentrant onlyActive {
         LoanData memory loan = storage_loanInfo;
         IOwnerships ownerContract = IOwnerships(ownershipContract);
 
@@ -131,8 +149,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         if (
             loan.deadline < block.timestamp ||
             ownerContract.ownerOf(loan.IDS[1]) != msg.sender ||
-            loan.paymentsPaid == loan.paymentCount ||
-            loan.executed == true
+            loan.paymentsPaid == loan.paymentCount 
         ) {
             revert();
         }
@@ -185,7 +202,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         emit debtPaid(loan.paymentCount, loan.paymentsPaid);
     }
 
-    function claimCollateralasLender() public nonReentrant {
+    function claimCollateralasLender() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
         // 1. Check if the sender is the owner of the lender's NFT
@@ -195,8 +212,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         if (
             _ownerContract.ownerOf(m_loan.IDS[0]) != msg.sender ||
             m_loan.deadlineNext > block.timestamp ||
-            m_loan.paymentCount == m_loan.paymentsPaid ||
-            m_loan.executed == true
+            m_loan.paymentCount == m_loan.paymentsPaid 
         ) {
             revert();
         }
@@ -250,7 +266,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         emit collateralClaimed(msg.sender);
     }
 
-    function claimCollateralasBorrower() public nonReentrant {
+    function claimCollateralasBorrower() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
         // 1. Check if the sender is the owner of the borrowers's NFT
@@ -258,8 +274,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         // 3. Check if the loan has already been executed
         if (
             _ownerContract.ownerOf(m_loan.IDS[1]) != msg.sender ||
-            m_loan.paymentCount != m_loan.paymentsPaid ||
-            m_loan.executed == true
+            m_loan.paymentCount != m_loan.paymentsPaid 
         ) {
             revert();
         }
@@ -286,13 +301,13 @@ contract DebitaV2Loan is ReentrancyGuard {
                 (isLendingOffer && (currentOwner == ownerOfOffer)))
         ) {
             uint index = isLendingOffer ? 0 : 1;
-                approveAssets(
-                    debitaOfferV2,
-                    m_loan.assetAddresses[index],
-                    m_loan.assetAmounts[index] + claimableAmount,
-                    m_loan.nftData[index],
-                    m_loan.isAssetNFT[index]
-                );
+            approveAssets(
+                debitaOfferV2,
+                m_loan.assetAddresses[index],
+                m_loan.assetAmounts[index] + claimableAmount,
+                m_loan.nftData[index],
+                m_loan.isAssetNFT[index]
+            );
             if (isLendingOffer) {
                 // Send collateral to borrower & the lending back to the offer
                 transferAssets(
@@ -303,9 +318,7 @@ contract DebitaV2Loan is ReentrancyGuard {
                     m_loan.isAssetNFT[1],
                     m_loan.nftData[1]
                 );
-                
-            
-             
+
                 uint sendingAmount = m_loan.isAssetNFT[0] ? 1 : claimableAmount;
                 IDebitaOffer(debitaOfferV2).insertAssets(sendingAmount);
 
@@ -388,29 +401,93 @@ contract DebitaV2Loan is ReentrancyGuard {
         }
     }
 
-       /* 
+    /* 
     -------- -------- -------- -------- -------- -------- -------- 
            VESOLID FUNCTIONS
     -------- -------- -------- -------- -------- -------- -------- 
     
     */
 
+    function _voteWithVe(
+        address[] calldata _poolVote,
+        uint[] calldata _weights
+    ) public onlyActive {
+        LoanData memory m_loan = storage_loanInfo;
+        IOwnerships _ownerContract = IOwnerships(ownershipContract);
+        address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
 
-   function _voteWithVe(address[] calldata _poolVote, uint[] calldata _weights) public {
+        require(voterAddress != address(0), "Voter address is 0");
+        require(
+            _weights.length == _poolVote.length,
+            "Arrays must be the same length"
+        );
+        require(
+            _ownerContract.ownerOf(m_loan.IDS[1]) == msg.sender,
+            "Msg Sender is not the borrower"
+        );
 
-     LoanData memory m_loan = storage_loanInfo;
-     IOwnerships _ownerContract = IOwnerships(ownershipContract);
+        voterContract voter = voterContract(voterAddress);
+        voter.vote(m_loan.IDS[1], _poolVote, _weights);
+    }
 
-     require(_weights.length == _poolVote.length, "Arrays must be the same length");
-     require(_ownerContract.ownerOf(m_loan.IDS[1]) == msg.sender, "Msg Sender is not the borrower");
+    function claimBribes(
+        address[] calldata _bribes,
+        address[][] calldata _tokens
+    ) public onlyActive {
 
-     voterContract voter = voterContract(getVoterContract_veNFT(m_loan.IDS[1]));
-     voter.vote(m_load.IDS[1], _poolVote, _weights);
-     
-   }
+        LoanData memory m_loan = storage_loanInfo;
+        IOwnerships _ownerContract = IOwnerships(ownershipContract);
+        address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
 
+        require(voterAddress != address(0), "Voter address is 0");
+        require(
+            _ownerContract.ownerOf(m_loan.IDS[1]) == msg.sender,
+            "Msg Sender is not the borrower"
+        );
 
+        voterContract voter = voterContract(voterAddress);
+        voter.claimBribes(_bribes, _tokens, m_loan.IDS[1]);
+         
+        // Claim bribes and send it to the borrower
+        for (uint i = 0; i < _tokens.length; i++) {
+            for (uint j = 0; j < _tokens[i].length; j++) {
+                uint amountToRest;
+                if (
+                    _tokens[i][j] == m_loan.assetAddresses[0] ||
+                    _tokens[i][j] == m_loan.interestAddress_Lending_NFT
+                ) {
+                    amountToRest = claimableAmount;
+                } else if (_tokens[i][j] == m_loan.assetAddresses[1]) {
+                    amountToRest = m_loan.assetAmounts[1];
+                }
 
+                uint amountToSend = ERC20(_tokens[i][j]).balanceOf(
+                    address(this)
+                ) - amountToRest;
+
+                transferAssets(
+                    address(this),
+                    msg.sender,
+                    _tokens[i][j],
+                    amountToSend,
+                    false,
+                    0
+                );
+            }
+        }
+    }
+
+    function increaseLock(uint duration) public onlyActive {
+
+      LoanData memory m_loan = storage_loanInfo;
+      IOwnerships _ownerContract = IOwnerships(ownershipContract);
+      address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
+
+      require(voterAddress != address(0), "Voter address is 0");
+      require(msg.sender == _ownerContract.ownerOf(m_loan.IDS[1]), "Msg Sender is not the borrower");
+
+      veNFT(m_loan.assetAddresses[1]).increase_unlock_time(m_loan.IDS[1], duration);
+    }
 
     /* 
     -------- -------- -------- -------- -------- -------- -------- 
@@ -469,7 +546,7 @@ contract DebitaV2Loan is ReentrancyGuard {
     
     */
 
-    function getVoterContract_veNFT(address _veNFT) public {
+    function getVoterContract_veNFT(address _veNFT) public returns (address) {
         return veNFT(_veNFT).voter();
     }
 
