@@ -166,6 +166,53 @@ const {
      await contractVeEqual.connect(holderEQUAL).approve(contractOffersV2.target, veEqualID_smallAmount);
       // locked amount of veEqualID_smallAmount == 100, but we need 1000
      await expect(contractOffersV2.connect(holderEQUAL).acceptOfferAsLender(1, veEqualID_smallAmount)).to.be.reverted;
-    })
+    }),
+
+    it("Accept offer as borrower", async function () {
+      await contractFactoryV2.setVeNFT(veEqualAddress);
+
+      const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+        [equalAddress, veEqualAddress],
+        [1000, 1],
+        [false, true],
+        1000,
+        [0, 10000],
+        1000,
+        1,
+        86400,
+        [true, true],
+        equalAddress
+      );
+
+      const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
+        [equalAddress, veEqualAddress],
+        [1000, 1],
+        [false, true],
+        1000,
+        [0, 10000],
+        100,
+        1,
+        86400,
+        [true, true],
+        equalAddress
+      );
+      
+      const allTxs = [tx, tx2];
+      for(let i = 0; i < 2; i++) {
+        let _tx = allTxs[i];
+        const receipt = await _tx.wait();
+        const createdOfferAddress = receipt.logs[1].args[1];
+        const contractOffers = await ethers.getContractFactory("DebitaV2Offers");
+        contractOffersV2 = await contractOffers.attach(createdOfferAddress);
+
+        await contractVeEqual.connect(holderEQUAL).approve(contractOffersV2.target, veEqualID_smallAmount);
+       if(i == 1) {
+        await contractOffersV2.connect(holderEQUAL).acceptOfferAsBorrower(1000, veEqualID_smallAmount);
+       } else {
+        await expect(contractOffersV2.connect(holderEQUAL).acceptOfferAsBorrower(1000, veEqualID_smallAmount)).to.be.revertedWith("Must be greater than veNFT value");
+       }
+    }
+  
+  })
     
 });

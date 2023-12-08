@@ -36,6 +36,15 @@ interface IOwnerships {
 
 interface IDebitaLoanFactory {
     function feeAddress() external returns (address);
+ 
+}
+
+interface veNFT {
+    function voter() external returns(address);
+}
+
+interface voterContract {
+    function vote(uint tokenId, address[] memory _poolVote, uint[] memory _weights) external;
 }
 
 contract DebitaV2Loan is ReentrancyGuard {
@@ -379,6 +388,30 @@ contract DebitaV2Loan is ReentrancyGuard {
         }
     }
 
+       /* 
+    -------- -------- -------- -------- -------- -------- -------- 
+           VESOLID FUNCTIONS
+    -------- -------- -------- -------- -------- -------- -------- 
+    
+    */
+
+
+   function _voteWithVe(address[] calldata _poolVote, uint[] calldata _weights) public {
+
+     LoanData memory m_loan = storage_loanInfo;
+     IOwnerships _ownerContract = IOwnerships(ownershipContract);
+
+     require(_weights.length == _poolVote.length, "Arrays must be the same length");
+     require(_ownerContract.ownerOf(m_loan.IDS[1]) == msg.sender, "Msg Sender is not the borrower");
+
+     voterContract voter = voterContract(getVoterContract_veNFT(m_loan.IDS[1]));
+     voter.vote(m_load.IDS[1], _poolVote, _weights);
+     
+   }
+
+
+
+
     /* 
     -------- -------- -------- -------- -------- -------- -------- 
            INTERNAL FUNCTIONS
@@ -435,6 +468,10 @@ contract DebitaV2Loan is ReentrancyGuard {
     -------- -------- -------- -------- -------- -------- -------- 
     
     */
+
+    function getVoterContract_veNFT(address _veNFT) public {
+        return veNFT(_veNFT).voter();
+    }
 
     function getLoanData() public view returns (LoanData memory) {
         return storage_loanInfo;

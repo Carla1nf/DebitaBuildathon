@@ -9,6 +9,8 @@ interface IDebitaOfferFactory {
     function isSenderAnOffer(address sender) external returns (bool);
 }
 
+
+
 contract DebitaV2LoanFactory is ReentrancyGuard {
       event LoanCreated(
         address indexed lendingAddress,
@@ -112,4 +114,6 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
     function setDebitaOfferFactory(address offerFactory) public onlyOwner {
         debitaOfferFactory = offerFactory;
     }
+
+
 }

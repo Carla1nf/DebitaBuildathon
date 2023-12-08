@@ -161,6 +161,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             require(lockedAmount >= (m_offer.valueOfVeNFT), "Must be greater than veNFT value");
         }
 
+
         require(m_offer.isLending, "Owner is not lender");
         require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
         require(m_offer.isActive, "Offer is not active");
