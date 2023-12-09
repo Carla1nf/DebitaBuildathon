@@ -36,6 +36,7 @@ interface IOwnerships {
 
 interface IDebitaLoanFactory {
     function feeAddress() external returns (address);
+    function checkIfAddressIsveNFT(address contractAddress) external returns (bool);
 }
 
 interface veNFT {
@@ -415,7 +416,9 @@ contract DebitaV2Loan is ReentrancyGuard {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
         address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
-
+        bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+        
+        require(isContractValid, "Contract is not a veNFT");
         require(voterAddress != address(0), "Voter address is 0");
         require(
             _weights.length == _poolVote.length,
@@ -438,6 +441,9 @@ contract DebitaV2Loan is ReentrancyGuard {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
         address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
+         bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+        
+        require(isContractValid, "Contract is not a veNFT");
 
         require(voterAddress != address(0), "Voter address is 0");
         require(
@@ -482,6 +488,8 @@ contract DebitaV2Loan is ReentrancyGuard {
       LoanData memory m_loan = storage_loanInfo;
       IOwnerships _ownerContract = IOwnerships(ownershipContract);
       address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
+       bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+       require(isContractValid, "Contract is not a veNFT");
 
       require(voterAddress != address(0), "Voter address is 0");
       require(msg.sender == _ownerContract.ownerOf(m_loan.IDS[1]), "Msg Sender is not the borrower");

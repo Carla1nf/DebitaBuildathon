@@ -7,6 +7,8 @@ import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 
 interface IDebitaOfferFactory {
     function isSenderAnOffer(address sender) external returns (bool);
+    
+    function isContractVeNFT(address contractAddress) external view returns (bool);
 }
 
 
@@ -114,6 +116,9 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
     function setDebitaOfferFactory(address offerFactory) public onlyOwner {
         debitaOfferFactory = offerFactory;
     }
-
+    
+    function checkIfAddressIsveNFT(address contractAddress) public view returns (bool) {
+        return IDebitaOfferFactory(debitaOfferFactory).isContractVeNFT(contractAddress);
+    }
 
 }
