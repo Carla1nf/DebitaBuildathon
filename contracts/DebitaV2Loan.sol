@@ -489,6 +489,7 @@ contract DebitaV2Loan is ReentrancyGuard {
       IOwnerships _ownerContract = IOwnerships(ownershipContract);
       address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
        bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+       
        require(isContractValid, "Contract is not a veNFT");
 
       require(voterAddress != address(0), "Voter address is 0");
