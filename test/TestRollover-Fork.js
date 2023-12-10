@@ -71,7 +71,7 @@ const {
       contractERC20 = await erc20.attach(equalAddress);
       const accounts = "0x89A7c531178CD6EB01994361eFc0d520a3a702C6";
       holderEQUAL = await ethers.getImpersonatedSigner(accounts);
-  
+
       // Setup --> Debita Loan Factory and Ownership contract -- Connected
       await ownerships.setDebitaContract(debitaLoanFactoryV2.target);
 

@@ -34,8 +34,13 @@ function approve(address _approved, uint256 _tokenId ) public {
     "";
 }
 
+
 function locked(uint id) public view returns(LockedBalance memory) {
     return LockedBalance(0,0);
+}
+
+function locked__end(uint id) public view returns(uint) {
+    return 0;
 }
     
 }

@@ -79,6 +79,10 @@ const {
 
       await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
 
+      await signer1.sendTransaction({
+        to: holderEQUAL.address,
+        value: valueInWei(100)})
+
       await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
   
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))
@@ -90,6 +94,7 @@ const {
       const veEqualContract = await ethers.getContractFactory("veEQUAL");
       contractVeEqual = await veEqualContract.attach(veEqualAddress);
 
+      
 
     }),
 

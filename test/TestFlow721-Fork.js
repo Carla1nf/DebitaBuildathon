@@ -73,8 +73,7 @@ const {
       await ownerships.setDebitaContract(debitaLoanFactoryV2.target);
       await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
   
-  
- 
+   
       await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
   
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))

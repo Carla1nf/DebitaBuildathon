@@ -70,7 +70,7 @@ describe("Lock", function () {
 
 
     await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
-    
+
     await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
 
     await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))

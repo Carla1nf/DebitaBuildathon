@@ -430,7 +430,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         );
 
         voterContract voter = voterContract(voterAddress);
-        voter.vote(m_loan.IDS[1], _poolVote, _weights);
+     
     }
 
     function claimBribes(
@@ -489,13 +489,13 @@ contract DebitaV2Loan is ReentrancyGuard {
       IOwnerships _ownerContract = IOwnerships(ownershipContract);
       address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
        bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
-       
+
        require(isContractValid, "Contract is not a veNFT");
 
       require(voterAddress != address(0), "Voter address is 0");
       require(msg.sender == _ownerContract.ownerOf(m_loan.IDS[1]), "Msg Sender is not the borrower");
-
-      veNFT(m_loan.assetAddresses[1]).increase_unlock_time(m_loan.IDS[1], duration);
+      
+      veNFT(m_loan.assetAddresses[1]).increase_unlock_time(m_loan.nftData[1], duration);
     }
 
     /* 

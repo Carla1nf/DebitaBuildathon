@@ -77,6 +77,7 @@ const {
 
       await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
 
+
       await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
   
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100))
@@ -86,7 +87,7 @@ const {
       await contractERC20.connect(signerUser2).approve(debitaLoanFactoryV2.target, valueInWei(10000));
 
 
-      
+      await contractERC20.connect(signerUser2).balanceOf(accounts);
   
     
       const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
