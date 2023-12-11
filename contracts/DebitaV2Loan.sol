@@ -456,7 +456,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         voter.claimBribes(_bribes, _tokens, m_loan.nftData[1]);
          
         // Claim bribes and send it to the borrower
-       /* for (uint i = 0; i < _tokens.length; i++) {
+        for (uint i = 0; i < _tokens.length; i++) {
             for (uint j = 0; j < _tokens[i].length; j++) {
                 uint amountToRest;
                 if (
@@ -481,7 +481,7 @@ contract DebitaV2Loan is ReentrancyGuard {
                     0
                 ); 
             }
-        }*/
+        }
     }
 
     function increaseLock(uint duration) public onlyActive {

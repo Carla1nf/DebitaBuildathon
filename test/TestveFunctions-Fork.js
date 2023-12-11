@@ -14,7 +14,11 @@ const {
     const equalAddress = "0x3Fd3A0c85B70754eFc07aC9Ac0cbBDCe664865A6";
     //  before each
 
-    const veEqualAddress = "0x8313f3551C4D3984FfbaDFb42f780D0c8763Ce94"
+    const veEqualAddress = "0x8313f3551C4D3984FfbaDFb42f780D0c8763Ce94";
+
+    const gaugeAddress = "0x863730009c8e1A460E244cE8CF71f56783F517c3";
+
+    const bribeAddress = "0xFb8Da62305d8C357a67293D571a51fE4854F7f8d";
   
   
     let owner;
@@ -68,7 +72,7 @@ const {
      await debitaLoanFactoryV2.setDebitaOfferFactory(contractFactoryV2.target);
 
      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
-
+     
 
       const erc20 = await ethers.getContractFactory("ERC20DEBITA");
       
@@ -149,26 +153,45 @@ const {
 
 
 
-    }),
+    }), 
 
     it("Collect bribes of the veEqual - using it as collateral", async () => {
          
         await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000]);
         
-        const gaugeAddress = "0x863730009c8e1A460E244cE8CF71f56783F517c3";
-
-        const bribeAddress = "0xFb8Da62305d8C357a67293D571a51fE4854F7f8d";
-
-        await time.increase(86400 * 7);
-        
-
-        const beforeClaiming = await contractERC20.balanceOf(contractLoansV2.target);
-        await contractLoansV2.connect(holderEQUAL).claimBribes([bribeAddress], [[equalAddress]]);
-        const afterClaiming = await contractERC20.balanceOf(contractLoansV2.target);
-        console.log(afterClaiming - beforeClaiming);
-
-
-        
   
+
+        
+        const interfaceBribe = await ethers.getContractFactory("BribeContract");
+        const bribeContract = await interfaceBribe.attach(bribeAddress);
+
+        const wFTM_Interface = await ethers.getContractFactory("ERC20DEBITA");
+         
+        const wftmAddress = "0x21be370D5312f44cB42ce377BC9b8a0cEF1A4C83";
+        const wFTM_Contract = await wFTM_Interface.attach(wftmAddress);
+         
+        const wFTMHolder = await ethers.getImpersonatedSigner("0x7B7B957c284C2C227C980d6E2F804311947b84d0")
+        await contractERC20.connect(holderEQUAL).approve(bribeAddress, valueInWei(10000));
+
+        await wFTM_Contract.connect(wFTMHolder).approve(bribeAddress, valueInWei(10000));
+
+        await bribeContract.connect(holderEQUAL).notifyRewardAmount(equalAddress, valueInWei(10));
+
+        await bribeContract.connect(wFTMHolder).notifyRewardAmount(wftmAddress, valueInWei(1000));
+        
+        await time.increase(86400 * 30);
+        const beforeClaiming = await contractERC20.balanceOf(holderEQUAL.address);
+
+        const beforeClaiming_wFTM = await contractERC20.balanceOf(holderEQUAL.address);
+    
+        await contractLoansV2.connect(holderEQUAL).claimBribes([bribeAddress], [[equalAddress, wftmAddress]]);
+
+        const afterClaiming = await contractERC20.balanceOf(holderEQUAL.address);
+        const afterClaiming_wFTM = await contractERC20.balanceOf(holderEQUAL.address);
+        
+        expect(afterClaiming).to.be.above(beforeClaiming);
+        expect(afterClaiming_wFTM).to.be.above(beforeClaiming_wFTM);
+
+        
     })
 });
