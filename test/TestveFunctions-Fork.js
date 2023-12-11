@@ -132,7 +132,7 @@ const {
     }),
     it("Vote with veEqual - using it as collateral", async () => {
       
-     await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [100]);
+     await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000]);
 
         
     }),
@@ -152,10 +152,23 @@ const {
     }),
 
     it("Collect bribes of the veEqual - using it as collateral", async () => {
-      
-        await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [1000]);
-      
+         
+        await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000]);
+        
+        const gaugeAddress = "0x863730009c8e1A460E244cE8CF71f56783F517c3";
 
+        const bribeAddress = "0xFb8Da62305d8C357a67293D571a51fE4854F7f8d";
+
+        await time.increase(86400 * 7);
+        
+
+        const beforeClaiming = await contractERC20.balanceOf(contractLoansV2.target);
+        await contractLoansV2.connect(holderEQUAL).claimBribes([bribeAddress], [[equalAddress]]);
+        const afterClaiming = await contractERC20.balanceOf(contractLoansV2.target);
+        console.log(afterClaiming - beforeClaiming);
+
+
+        
   
     })
 });
