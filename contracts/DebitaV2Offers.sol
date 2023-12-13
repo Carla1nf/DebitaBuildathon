@@ -69,6 +69,7 @@ contract DebitaV2Offers is ReentrancyGuard {
     address private immutable debitaFactoryOfferV2;
     uint private totalLending;
     uint private totalCollateral;
+    int128 private totalVeNFT;
     uint lastEditedBlock;
 
     mapping(address => bool) private isSenderALoan;
@@ -130,6 +131,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         debitaFactoryOfferV2 = msg.sender;
         totalLending = assetAmounts[0];
         totalCollateral = assetAmounts[1];
+        totalVeNFT = veValue;
     }
 
     function cancelOffer() external onlyOwner onlyActive nonReentrant {
@@ -146,33 +148,43 @@ contract DebitaV2Offers is ReentrancyGuard {
         );
     }
 
-    // 10 = 1% from the totalAmount
+
     function acceptOfferAsBorrower(
         uint amount,
         uint sendingNFTID
     ) public nonReentrant onlyActive afterCooldown {
         OfferInfo memory m_offer = storage_OfferInfo;
-        uint porcentage = (amount * 1000) / m_offer.assetAmounts[0];
+        uint porcentage = (amount * 10000) / m_offer.assetAmounts[0];
 
-        if(IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[1])) {
+        bool isCollateral_veNFT = IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[1]);
+       
+  
+        if(isCollateral_veNFT) {
+            
             veSolid.LockedBalance memory lockedData = veSolid(m_offer.assetAddresses[1]).locked(sendingNFTID);
             int128 lockedAmount = lockedData.amount;
+            int128 expectedValue = ((m_offer.valueOfVeNFT) * int128(int(porcentage))) / 10000;
+            require((lockedAmount) >= (expectedValue), "Must be greater than veNFT value");
+            m_offer.valueOfVeNFT -= expectedValue;
 
-            require(lockedAmount >= (m_offer.valueOfVeNFT), "Must be greater than veNFT value");
+        } else if (m_offer.isAssetNFT[0] || m_offer.isAssetNFT[1]) {
+            require(porcentage == 10000, "Must be 100%");
         }
 
 
         require(m_offer.isLending, "Owner is not lender");
-        require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
+        require(porcentage <= 10000 && porcentage >= 10, "100% - 0.1%");
         require(m_offer.isActive, "Offer is not active");
 
+        uint256 collateralAmount = 1;
         // [0]: Lending  [1]: Collateral
-        uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
-            1000;
+        if(!isCollateral_veNFT) {
+            collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
+            10000;
+            m_offer.assetAmounts[1] -= collateralAmount;
 
-        m_offer.assetAmounts[0] -= amount;
-        m_offer.assetAmounts[1] -= collateralAmount;
-
+        }
+         m_offer.assetAmounts[0] -= amount;
         if (m_offer.assetAmounts[0] == 0) {
             storage_OfferInfo.isActive = false;
         }
@@ -185,6 +197,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT[1],
             sendingNFTID
         );
+        
         storage_OfferInfo = m_offer;
 
         uint[2] memory ids = IDebitaFactoryV2(debitaFactoryLoansV2).mintOwnerships(
@@ -227,7 +240,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint sendingNFTID
     ) public nonReentrant onlyActive afterCooldown {
         OfferInfo memory m_offer = storage_OfferInfo;
-        uint porcentage = (amount * 1000) / m_offer.assetAmounts[0];
+        uint porcentage = (amount * 10000) / m_offer.assetAmounts[0];
 
         if(IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[0])) {
             veSolid.LockedBalance memory lockedData = veSolid(m_offer.assetAddresses[0]).locked(sendingNFTID);
@@ -236,15 +249,15 @@ contract DebitaV2Offers is ReentrancyGuard {
             require(lockedAmount >= (m_offer.valueOfVeNFT), "Must be greater than veNFT value");
         }
         require(!m_offer.isLending, "Owner is not borrower");
-        require(porcentage <= 1000 && porcentage >= 10, "100% - 1%");
+        require(porcentage <= 10000 && porcentage >= 10, "100% - 0.1%");
         require(m_offer.isActive, "Offer is not active");
 
         if (m_offer.isAssetNFT[0] || m_offer.isAssetNFT[1]) {
-            require(porcentage == 1000, "Must be 100%");
+            require(porcentage == 10000, "Must be 100%");
         }
 
         uint256 collateralAmount = (m_offer.assetAmounts[1] * porcentage) /
-            1000;
+            10000;
 
         m_offer.assetAmounts[0] -= amount;
         m_offer.assetAmounts[1] -= collateralAmount;
@@ -307,6 +320,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             ? m_offer.assetAddresses[0]
             : m_offer.assetAddresses[1];
 
+         bool isCollateral_veNFT = IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[1]) && m_offer.isLending;
+       
         transferAssets(
             msg.sender,
             address(this),
@@ -323,7 +338,10 @@ contract DebitaV2Offers is ReentrancyGuard {
             : totalCollateral;
         uint porcentageToAdd = (assetAmount * 10000000) / amountOfAssetAdded;
 
-        // Add the opposite asset
+        if(isCollateral_veNFT) {
+            m_offer.valueOfVeNFT += totalVeNFT * int128(int(porcentageToAdd)) / 10000000;
+        } else {
+              // Add the opposite asset
         uint oppositeOfAmountAsset = m_offer.isLending
             ? totalCollateral
             : totalLending;
@@ -331,6 +349,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             (oppositeOfAmountAsset * porcentageToAdd) /
             10000000;
 
+        }
         storage_OfferInfo = m_offer;
     }
 
@@ -373,8 +392,9 @@ contract DebitaV2Offers is ReentrancyGuard {
           transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
         }
         
-
-
+         if(!m_offer.isAssetNFT[index]) {
+            transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
+        }
 
         m_offer.assetAmounts[0] = _newAssetAmounts[0];
         m_offer.assetAmounts[1] = _newAssetAmounts[1];
@@ -387,11 +407,21 @@ contract DebitaV2Offers is ReentrancyGuard {
         totalCollateral = _newAssetAmounts[1];
         totalLending = _newAssetAmounts[0];
 
-        if(!m_offer.isAssetNFT[index]) {
-            transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
-        }
       
     }
+
+        function int128ToUint256(int128 signedValue) internal pure returns (uint256) {
+        require(signedValue >= 0, "Input value must be non-negative");
+
+        // You can directly cast an int to uint if it's non-negative
+       // Convert int128 to int256
+        int256 signedValue256 = int256(signedValue);
+
+        // Convert int256 to uint256
+        uint256 unsignedValue = uint256(signedValue256);
+        return unsignedValue;
+    }
+
 
     function getOffersData() public view returns (OfferInfo memory) {
         return storage_OfferInfo;
