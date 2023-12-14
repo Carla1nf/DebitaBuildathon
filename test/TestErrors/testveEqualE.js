@@ -98,7 +98,8 @@ const {
       contractVeEqual = await veEqualContract.attach(veEqualAddress);
 
   
-      await contractERC20.connect(holderEQUAL).approve(contractVeEqual.target, valueInWei(10000))
+      await contractERC20.connect(holderEQUAL).approve(contractVeEqual.target, valueInWei(10000));
+      
       await contractVeEqual.connect(holderEQUAL).create_lock(valueInWei(100), 86400 * 7 * 26);
 
       const supplyUser = await contractVeEqual.tokensOfOwner(holderEQUAL.address);
@@ -123,11 +124,13 @@ const {
         const contractOffers = await ethers.getContractFactory("DebitaV2Offers");
         contractOffersV2 = await contractOffers.attach(createdOfferAddress);
 
-        await contractERC20.connect(holderEQUAL).approve(contractOffersV2.target, valueInWei(10000));
+        await contractERC20.connect(signerUser2).approve(contractOffersV2.target, valueInWei(10000));
 
-      
+        await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100));
 
-       const tx_Accept =  await contractOffersV2.connect(holderEQUAL).acceptOfferAsLender(1000, 0);
+  
+
+       const tx_Accept =  await contractOffersV2.connect(signerUser2).acceptOfferAsLender(1000, 0);
 
        const receipt_accept = await tx_Accept.wait()
 
@@ -138,15 +141,60 @@ const {
 
         await contractERC20.connect(holderEQUAL).approve(contractLoansV2.target, valueInWei(10000));
     }),
-    it("Vote with veEqual - using it as collateral", async () => {
+    it("Vote with veEqual and claim it - using it as collateral", async () => {
       
      await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000]);
      
      await contractLoansV2.connect(holderEQUAL).payDebt();
-      
+
+     await time.increase(86400 * 7);
+
      await contractLoansV2.connect(holderEQUAL).claimCollateralasBorrower();
+     
 
+     
+     // No longer Active
+     await expect(contractLoansV2.connect(holderEQUAL).claimCollateralasBorrower()).to.be.rejected;
 
+     await expect(contractLoansV2.connect(holderEQUAL).payDebt()).to.be.rejected;
+
+     await expect(contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000])).to.be.rejected;
+
+    await expect(contractLoansV2.connect(holderEQUAL).increaseLock(86400 * 7 * 26)).to.be.rejected;
+     
+ 
+    }),
+    it("Check data after of offer claiming collateral", async () => {
+
+        await expect( contractLoansV2.connect(signerUser2).claimCollateralasBorrower()).to.be.rejected;
+
+        await expect(contractLoansV2.connect(holderEQUAL).claimCollateralasBorrower()).to.be.rejected;
+
+        await contractLoansV2.connect(holderEQUAL).payDebt();
+
+        await expect( contractLoansV2.connect(signerUser2).claimCollateralasBorrower()).to.be.rejected;
+
+        await expect(contractLoansV2.connect(owner).claimCollateralasBorrower()).to.be.rejected;
+
+        const data_Before = await contractOffersV2.connect(signerUser2).getOffersData();
+
+        checkData(data_Before, [1, 5], [[0, 0], 1000]);
+   
+        await contractLoansV2.connect(holderEQUAL).claimCollateralasBorrower();
         
+        const data = await contractOffersV2.connect(signerUser2).getOffersData();
+   
+        checkData(data, [1, 5], [[1000, 1], 1000]);
+
+    })
+    it("Test offer", async () => {
+      await expect(contractOffersV2.connect(holderEQUAL).acceptOfferAsLender(1000, 0)).to.be.rejected;
+
+      await expect(contractOffersV2.connect(holderEQUAL).acceptOfferAsBorrower(1000, 0)).to.be.rejected;
+
+      await expect(contractOffersV2.connect(signerUser2).insertAssets(1000)).to.be.rejected;
+
+      await expect(contractOffersV2.connect(holderEQUAL).editOffer([100, 100], [0, 3, 86400], 1000, 100)).to.be.rejected;
+
     })
 });

@@ -61,6 +61,7 @@ interface voterContract {
         uint tokenId
     ) external;
 
+    function reset(uint _tokenId) external;
 }
 
 contract DebitaV2Loan is ReentrancyGuard {
@@ -272,6 +273,7 @@ contract DebitaV2Loan is ReentrancyGuard {
     function claimCollateralasBorrower() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
+        address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
         // 1. Check if the sender is the owner of the borrowers's NFT
         // 2. Check if the paymenyCount is different than the paids
         // 3. Check if the loan has already been executed
@@ -283,7 +285,9 @@ contract DebitaV2Loan is ReentrancyGuard {
         }
 
         storage_loanInfo.executed = true;
-
+        voterContract voter = voterContract(voterAddress);
+        voter.reset(m_loan.nftData[1]);
+        
         // Burn msg.sender NFT
         _ownerContract.burn(m_loan.IDS[1]);
 
@@ -485,8 +489,6 @@ contract DebitaV2Loan is ReentrancyGuard {
             }
         }
     }
-
-
 
     function increaseLock(uint duration) public onlyActive {
         LoanData memory m_loan = storage_loanInfo;

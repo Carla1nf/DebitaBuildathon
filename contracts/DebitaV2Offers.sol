@@ -135,9 +135,13 @@ contract DebitaV2Offers is ReentrancyGuard {
     }
 
     function cancelOffer() external onlyOwner onlyActive nonReentrant {
+
         OfferInfo memory m_offer = storage_OfferInfo;
-        storage_OfferInfo.isActive = false;
+        m_offer.isPerpetual = false;
+        m_offer.isActive = false;
+        storage_OfferInfo = m_offer;
         uint index = m_offer.isLending ? 0 : 1;
+        
         transferAssets(
             address(this),
             owner,
