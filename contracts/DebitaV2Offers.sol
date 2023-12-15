@@ -189,8 +189,9 @@ contract DebitaV2Offers is ReentrancyGuard {
 
         }
          m_offer.assetAmounts[0] -= amount;
+
         if (m_offer.assetAmounts[0] == 0) {
-            storage_OfferInfo.isActive = false;
+            m_offer.isActive = false;
         }
 
         transferAssets(
@@ -354,6 +355,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             10000000;
 
         }
+        
+        m_offer.isActive = true;
         storage_OfferInfo = m_offer;
     }
 
@@ -406,7 +409,9 @@ contract DebitaV2Offers is ReentrancyGuard {
         m_offer.paymentCount = uint8(_newLoanData[1]);
         m_offer._timelap = uint32(_newLoanData[2]);
 
-
+      
+        m_offer.isActive = m_offer.assetAmounts[0] > 0;
+         
         storage_OfferInfo = m_offer;
         totalCollateral = _newAssetAmounts[1];
         totalLending = _newAssetAmounts[0];
