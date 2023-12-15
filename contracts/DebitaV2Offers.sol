@@ -141,7 +141,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         m_offer.isActive = false;
         storage_OfferInfo = m_offer;
         uint index = m_offer.isLending ? 0 : 1;
-        
+
         transferAssets(
             address(this),
             owner,
@@ -163,7 +163,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         bool isCollateral_veNFT = IDebitaOfferFactoryV2(debitaFactoryOfferV2).isContractVeNFT(m_offer.assetAddresses[1]);
        
   
-        if(isCollateral_veNFT) {
+        if(isCollateral_veNFT && !m_offer.isAssetNFT[0]) {
             
             veSolid.LockedBalance memory lockedData = veSolid(m_offer.assetAddresses[1]).locked(sendingNFTID);
             int128 lockedAmount = lockedData.amount;

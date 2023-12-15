@@ -55,7 +55,7 @@ const {
       const erc721 = await ethers.getContractFactory("ABIERC721");
       contractERC721 = await erc721.deploy();
       // Deploy Contracts & Accounts
-      const loanContract = await ethers.getContractFactory("DebitaV2Loan");
+      contractLoansV2 = await ethers.getContractFactory("DebitaV2Loan");
       const owners = await ethers.getContractFactory("Ownerships");
       ownerships = await owners.deploy();
       const factory = await ethers.getContractFactory("DebitaV2OfferFactory");
@@ -163,5 +163,35 @@ const {
         const balanceAfter = await contractERC20.balanceOf(holderEQUAL.address);
         checkData(offerData, [0, 1, 4], [[equalAddress, equalAddress], [1000, 1800], [0, 0]])
         expect(balanceAfter - balanceBefore).to.be.equal(200);
+    }), 
+   
+    // SI COLLATERAL ES VENFT Y LENDING ES NFT, SE PUEDE TOMAR PARTE DEL LOAN
+    it("Accept offer, edit it, pay it back & check perpetual", async () => {
+      await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100));
+       const tx = await contractOffersV2.connect(signerUser2).acceptOfferAsBorrower(1000, 0);
+
+       const receipt_accept = await tx.wait();
+
+       const createdLoanAddress = receipt_accept.logs[3].args[1];
+       const loanContract = await contractLoansV2.attach(createdLoanAddress);
+      
+       await contractERC20.connect(signerUser2).approve(loanContract.target, valueInWei(10000));
+
+       await loanContract.connect(signerUser2).payDebt();
+
+       await contractOffersV2.connect(holderEQUAL).editOffer([110, 220], [0, 1, 86400], 0, 0);
+       
+       const data = await contractOffersV2.getOffersData();
+
+       checkData(data, [1], [[110, 220]]) 
+       
+       await loanContract.connect(signerUser2).claimCollateralasBorrower();
+
+       const data_After = await contractOffersV2.getOffersData();
+
+       const porcentaje = Math.floor(Math.floor(1094 * 10000000) / 110);
+
+       checkData(data_After, [1], [[1094 + 110, Math.floor(Math.floor(220 * porcentaje) / 10000000) + 220]])
+
     })
 })
