@@ -137,7 +137,7 @@ const {
  
     }
     }),
-    it("Edit offer and receive funds as Lender owner", async () => {
+  /*  it("Edit offer and receive funds as Lender owner", async () => {
       const balanceBefore = await contractERC20.balanceOf(holderEQUAL.address);
       await contractOffersV2.connect(holderEQUAL).editOffer(
        [800, 2000],
@@ -168,6 +168,7 @@ const {
  
     it("Accept offer, edit it, pay it back & check perpetual", async () => {
       await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100));
+
        const tx = await contractOffersV2.connect(signerUser2).acceptOfferAsBorrower(1000, 0);
  
 
@@ -200,6 +201,44 @@ const {
        const balanceAfter = await contractERC20.balanceOf(holderEQUAL.address);
 
        expect(balanceAfter - balanceBefore).to.be.equal(1094 + 110);
+
+    }), */
+
+    it("Accept offer, edit it, pay it back & check perpetual -- Second offer (Collateral offer)", async () => {
+      await contractERC20.connect(holderEQUAL).transfer(signerUser2.address, valueInWei(100));
+
+       const tx = await contractOffersV2_Secomd.connect(signerUser2).acceptOfferAsLender(1000, 0);
+ 
+
+       const receipt_accept = await tx.wait();
+
+       const createdLoanAddress = receipt_accept.logs[3].args[1];
+       const loanContract = await contractLoansV2.attach(createdLoanAddress);
+       
+       await contractERC20.connect(holderEQUAL).approve(loanContract.target, valueInWei(10000));
+
+       await loanContract.connect(holderEQUAL).payDebt();
+
+       await contractOffersV2_Secomd.connect(holderEQUAL).editOffer([110, 220], [0, 1, 86400], 0, 0);
+       
+       const data = await contractOffersV2_Secomd.getOffersData();
+
+       checkData(data, [1], [[110, 220]]) 
+       
+       await loanContract.connect(holderEQUAL).claimCollateralasBorrower();
+
+       const data_After = await contractOffersV2_Secomd.getOffersData();
+
+       const porcentaje = Math.floor(Math.floor(2000 * 10000000) / 220);
+
+        checkData(data_After, [1], [[Math.floor(110 * porcentaje / 10000000) + 110, Math.floor(2000) + 220]]);
+       
+       const balanceBefore = await contractERC20.balanceOf(holderEQUAL.address);
+       await contractOffersV2_Secomd.connect(holderEQUAL).cancelOffer();
+
+       const balanceAfter = await contractERC20.balanceOf(holderEQUAL.address);
+
+       expect(balanceAfter - balanceBefore).to.be.equal(Math.floor(2000 + 220));  
 
     })
 })

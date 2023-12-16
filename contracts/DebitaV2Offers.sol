@@ -377,6 +377,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             _newLoanData[2] < 1 days || 
             _newLoanData[2] > 365 days ||
             _newAssetAmounts[0] == 0 ||
+            _newAssetAmounts[1] == 0 ||
             _newLoanData[1] > 10 ||
             _newLoanData[1] == 0 ||
             _newLoanData[1] > _newAssetAmounts[0] ||

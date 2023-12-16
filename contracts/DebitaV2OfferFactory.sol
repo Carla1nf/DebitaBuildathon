@@ -43,6 +43,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             _timelap < 1 days ||
             _timelap > 365 days ||
             assetAmounts[0] == 0 ||
+            assetAmounts[1] == 0 ||
             _paymentCount > 10 ||
             _paymentCount == 0 ||
             _paymentCount > assetAmounts[0] ||
