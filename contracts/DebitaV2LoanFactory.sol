@@ -23,8 +23,12 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
 
     address public feeAddress;
 
-
+    
+    // ADDRESS => IS LOAN
     mapping(address => bool) public isSenderALoan;
+    mapping(uint => address) public NftID_to_LoanAddress;
+
+  
     address owner;
     address private debitaOfferFactory;
     address private ownershipAddress;
@@ -83,20 +87,6 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
         return address(newLoan);
     }
 
-    function transferAssets(
-        address from,
-        address to,
-        address assetAddress,
-        uint256 assetAmount,
-        bool isNFT,
-        uint nftID
-    ) internal {
-        if (isNFT) {
-            ERC721(assetAddress).transferFrom(from, to, nftID);
-        } else {
-            IERC20(assetAddress).transferFrom(from, to, assetAmount);
-        }
-    }
 
     // owners[0] = lender, owners[1] = borrower
     function mintOwnerships(
@@ -109,12 +99,22 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
         return nftIDS;
     }
 
+    function setMappingIdToLoan(address loanAddress, uint[2] calldata nftIds) public onlyOffers() {
+        NftID_to_LoanAddress[nftIds[0]] = loanAddress;
+        NftID_to_LoanAddress[nftIds[1]] = loanAddress;
+
+    }
+
     function setOwnershipAddress(address ownershipAdd) public onlyOwner {
         ownershipAddress = ownershipAdd;
     }
 
     function setDebitaOfferFactory(address offerFactory) public onlyOwner {
         debitaOfferFactory = offerFactory;
+    }
+
+    function getAddressById(uint id) public view returns (address) {
+        return NftID_to_LoanAddress[id];
     }
     
     function checkIfAddressIsveNFT(address contractAddress) public view returns (bool) {

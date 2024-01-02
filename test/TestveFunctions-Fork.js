@@ -134,7 +134,7 @@ const {
 
         await contractFactoryV2.setVeNFT(veEqualAddress);
     }),
-    it("Vote with veEqual - using it as collateral", async () => {
+  /*  it("Vote with veEqual - using it as collateral", async () => {
       
      await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000]);
 
@@ -153,9 +153,9 @@ const {
 
 
 
-    }), 
+    }), */
 
-    it("Collect bribes of the veEqual - using it as collateral", async () => {
+    it("Collect bribes of the veEqual", async () => {
          
         await contractLoansV2.connect(holderEQUAL)._voteWithVe(["0x3d6c56f6855b7Cc746fb80848755B0a9c3770122"], [10000]);
         
@@ -178,19 +178,32 @@ const {
         await bribeContract.connect(holderEQUAL).notifyRewardAmount(equalAddress, valueInWei(10));
 
         await bribeContract.connect(wFTMHolder).notifyRewardAmount(wftmAddress, valueInWei(1000));
+
+        await contractERC20.connect(holderEQUAL).approve(contractLoansV2.target, valueInWei(10000));
+        await contractLoansV2.connect(holderEQUAL).payDebt();
         
         await time.increase(86400 * 30);
+       
+ 
         const beforeClaiming = await contractERC20.balanceOf(holderEQUAL.address);
 
         const beforeClaiming_wFTM = await contractERC20.balanceOf(holderEQUAL.address);
+
     
         await contractLoansV2.connect(holderEQUAL).claimBribes([bribeAddress], [[equalAddress, wftmAddress]]);
 
         const afterClaiming = await contractERC20.balanceOf(holderEQUAL.address);
         const afterClaiming_wFTM = await contractERC20.balanceOf(holderEQUAL.address);
         
+        const balanceAddressBefore = await contractERC20.balanceOf(holderEQUAL.address);
+        await contractLoansV2.connect(holderEQUAL).claimDebt();
+        const balanceAddressAfter = await contractERC20.balanceOf(holderEQUAL.address);
+   
         expect(afterClaiming).to.be.above(beforeClaiming);
         expect(afterClaiming_wFTM).to.be.above(beforeClaiming_wFTM);
+        expect(Number(balanceAddressAfter - balanceAddressBefore)).to.be.equal(1088);
+
+
 
         
     })

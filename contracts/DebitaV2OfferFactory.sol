@@ -26,7 +26,20 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         owner = msg.sender;
     }
 
-    // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
+     /**
+     * @dev create Offer
+     * @param assetAddresses [0] = Lending, [1] = Collateral
+     * @param assetAmounts [0] = Lending, [1] = Collateral
+     * @param isAssetNFT [0] = Lending, [1] = Collateral
+     * @param _interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
+     * @param nftData [0] = NFT ID Lender, [1] NFT ID Collateral, [2] Total amount of interest (If lending is NFT) ---  0 on each if not NFT
+     * @param veValue value of wanted locked veNFT (for borrower or lender) (0 if not veNFT)
+     * @param _paymentCount Number of payments
+     * @param _timelap timelap on each payment
+     * @param loanBooleans [0] = isLending (true --> msg.sender is Lender), [1] = isPerpetual
+     * @param interest_address address of the erc-20 for interest payments, 0x0 if lending is not NFT
+     **/
+        
     function createOfferV2(
         address[2] memory assetAddresses,
         uint256[2] memory assetAmounts,
@@ -68,6 +81,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             [msg.sender, interest_address]
         );
         uint index = loanBooleans[0] ? 0 : 1;
+        
         transferAssets(
             msg.sender,
             address(newOfferContract),
@@ -93,7 +107,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         if (isNFT) {
             ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
-            IERC20(assetAddress).transferFrom(from, to, assetAmount);
+           require(IERC20(assetAddress).transferFrom(from, to, assetAmount), "Amount not sent");
         }
     }
 

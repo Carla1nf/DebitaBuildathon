@@ -123,6 +123,7 @@ const {
 
     if(i == 0) {
       contractOffersV2 = await contractOffers.attach(createdOfferAddress);
+
     } else {
       contractOffersV2_Secomd = await contractOffers.attach(createdOfferAddress);
     }

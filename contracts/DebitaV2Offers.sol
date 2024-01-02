@@ -27,6 +27,8 @@ interface IDebitaFactoryV2 is IERC721Receiver {
         address[2] calldata owners
     ) external returns (uint[2] memory);
 
+    function setMappingIdToLoan(address loanAddress, uint[2] calldata nftIds) external;
+
     function createLoanV2(
         uint[2] calldata nftIDS,
         address[2] calldata assetAddresses,
@@ -218,6 +220,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.interest_address,
             address(this)
         );
+        IDebitaFactoryV2(debitaFactoryLoansV2).setMappingIdToLoan(loanAddress, ids);
         isSenderALoan[loanAddress] = true;
         // Send collateral to loanAddress
         transferAssets(
@@ -296,6 +299,7 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.interest_address,
             address(this)
         );
+        IDebitaFactoryV2(debitaFactoryLoansV2).setMappingIdToLoan(loanAddress, ids);
         isSenderALoan[loanAddress] = true;
 
         // Send collateral to loanAddress
@@ -449,9 +453,9 @@ contract DebitaV2Offers is ReentrancyGuard {
             ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             if (from == address(this)) {
-                ERC20(assetAddress).transfer(to, assetAmount);
+                require(ERC20(assetAddress).transfer(to, assetAmount), "Amount not sent");
             } else {
-                ERC20(assetAddress).transferFrom(from, to, assetAmount);
+                require(ERC20(assetAddress).transferFrom(from, to, assetAmount), "Amount not sent");
             }
         }
     }

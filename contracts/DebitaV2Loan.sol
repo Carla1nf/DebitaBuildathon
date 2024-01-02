@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
+
 interface IDebitaOffer {
     struct OfferInfo {
         address[2] assetAddresses;
@@ -79,8 +80,8 @@ contract DebitaV2Loan is ReentrancyGuard {
         uint8 paymentCount;
         uint8 paymentsPaid;
         uint256 paymentAmount;
-        uint256 deadline;
-        uint256 deadlineNext;
+        uint256 deadline; // final deadline
+        uint256 deadlineNext; // next Deadline
         bool executed; // if collateral claimed
     }
 
@@ -88,16 +89,30 @@ contract DebitaV2Loan is ReentrancyGuard {
     address private ownershipContract;
     address private debitaLoanFactory;
     address public debitaOfferV2;
-    uint private constant interestFEE = 6;
+    uint private constant interestFEE = 12;
     uint public claimableAmount;
 
     modifier onlyActive() {
         require(!storage_loanInfo.executed, "Loan is not active");
         _;
     }
-
-    // interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
-    constructor(
+     
+ /**
+     * @dev init Loan
+     * @param nftIDS [0] = Lender, [1] = Borrower
+     * @param assetAddresses [0] = Lending, [1] = Collateral
+     * @param assetAmounts [0] = Lending, [1] = Collateral
+     * @param _isAssetNFT [0] = Lending, [1] = Collateral
+     * @param _interestRate (1 ==> 0.01%, 1000 ==> 10%, 10000 ==> 100%)
+     * @param nftsData [0] = NFT ID Lender, [1] NFT ID Collateral, [2] Amount of interest (If lending is NFT) ---  0 on each if not NFT
+     * @param _paymentCount Number of payments
+     * @param _timelap timelap on each payment
+     * @param _ownershipContract contract address for the ownerships
+     * @param debitaAddresses [0] = contract address of DebitaV2LoanFactory, [1] = offer address
+     * @param interest_address 0x0 if lending is not NFT
+     */
+        
+        constructor(
         uint[2] memory nftIDS,
         address[2] memory assetAddresses,
         uint256[2] memory assetAmounts,
@@ -205,7 +220,8 @@ contract DebitaV2Loan is ReentrancyGuard {
 
         emit debtPaid(loan.paymentCount, loan.paymentsPaid);
     }
-
+     
+    // only if default
     function claimCollateralasLender() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
@@ -224,52 +240,20 @@ contract DebitaV2Loan is ReentrancyGuard {
         _ownerContract.burn(m_loan.IDS[0]);
         // Mark the loan as executed
         storage_loanInfo.executed = true;
-        address _feeAddress = IDebitaLoanFactory(debitaLoanFactory)
-            .feeAddress();
+      
 
-        // If lending is nft, to claim the NFT collateral, the lender must pay 20% of the interest, otherwise 2% of the lending.
-        if (m_loan.isAssetNFT[1]) {
-            uint feeAmount = m_loan.isAssetNFT[0] ? 20 : 2;
-            uint amount = m_loan.isAssetNFT[0]
-                ? m_loan.nftData[2]
-                : m_loan.assetAmounts[0];
-            address feeToken = m_loan.isAssetNFT[0]
-                ? m_loan.interestAddress_Lending_NFT
-                : m_loan.assetAddresses[0];
-            uint fee = (amount * feeAmount) / 100;
-
-            // Sending Fee and then collateral
-            transferAssets(msg.sender, _feeAddress, feeToken, fee, false, 0);
-            transferAssets(
+         transferAssets(
                 address(this),
                 msg.sender,
                 m_loan.assetAddresses[1],
                 m_loan.assetAmounts[1],
-                true,
-                m_loan.nftData[1]
-            );
-        } else {
-            uint fee = (m_loan.assetAmounts[1] * 2) / 100;
-            transferAssets(
-                address(this),
-                _feeAddress,
-                m_loan.assetAddresses[1],
-                fee,
-                false,
-                0
-            );
-            transferAssets(
-                address(this),
-                msg.sender,
-                m_loan.assetAddresses[1],
-                m_loan.assetAmounts[1] - fee,
                 m_loan.isAssetNFT[1],
                 m_loan.nftData[1]
             );
-        }
         emit collateralClaimed(msg.sender);
     }
 
+    // only after complete payment
     function claimCollateralasBorrower() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
@@ -366,7 +350,8 @@ contract DebitaV2Loan is ReentrancyGuard {
 
         emit collateralClaimed(msg.sender);
     }
-
+    
+    // only by Lender -- Claiming Debt
     function claimDebt() public nonReentrant {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
@@ -533,10 +518,10 @@ contract DebitaV2Loan is ReentrancyGuard {
         if (isNFT) {
             IERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
-            if (from == address(this)) {
-                ERC20(assetAddress).transfer(to, assetAmount);
+             if (from == address(this)) {
+                require(ERC20(assetAddress).transfer(to, assetAmount), "Amount not sent");
             } else {
-                ERC20(assetAddress).transferFrom(from, to, assetAmount);
+                require(ERC20(assetAddress).transferFrom(from, to, assetAmount), "Amount not sent");
             }
         }
     }
@@ -548,8 +533,9 @@ contract DebitaV2Loan is ReentrancyGuard {
         uint256 fee,
         address feeAddress
     ) internal {
-        ERC20(assetAddress).transferFrom(from, address(this), assetAmount);
-        ERC20(assetAddress).transfer(feeAddress, fee);
+       bool tx1 = ERC20(assetAddress).transferFrom(from, address(this), assetAmount);
+       bool tx2 = ERC20(assetAddress).transfer(feeAddress, fee);
+       require(tx1 && tx2, "Amount not sent");
     }
 
     function approveAssets(

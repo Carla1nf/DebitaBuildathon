@@ -20,6 +20,7 @@ describe("Lock", function () {
   let signerUser2;
   let holderEQUAL;
   let contractFactoryV2;
+  let debitaLoanFactoryV2_Contract;
   let contractOffersV2;
   let contractLoansV2;
   let contractERC20;
@@ -68,7 +69,6 @@ describe("Lock", function () {
     await ownerships.setDebitaContract(debitaLoanFactoryV2.target);
     await debitaLoanFactoryV2.connect(owner).setOwnershipAddress(ownerships.target);
 
-
     await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
 
     await contractERC20.connect(holderEQUAL).approve(contractFactoryV2.target, valueInWei(10000))
@@ -79,7 +79,7 @@ describe("Lock", function () {
 
     await contractERC20.connect(signerUser2).approve(debitaLoanFactoryV2.target, valueInWei(10000));
 
-    
+     debitaLoanFactoryV2_Contract = debitaLoanFactoryV2; 
 
   });
 
@@ -201,13 +201,19 @@ describe("Lock", function () {
   
         const createdLoanAddress = receipt_accept.logs[3].args[1];
         const loanContract = await contractLoansV2.attach(createdLoanAddress);
+     
         
         checkData(offerData, [1], [[90, 180]]);
         expect(await contractERC20.balanceOf(createdLoanAddress)).to.be.equal(20);
         if(i == 0) {
+          expect(await debitaLoanFactoryV2_Contract.NftID_to_LoanAddress(1)).to.equal(createdLoanAddress);
           expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(90);
+          const datauri = await ownerships.tokenURI(2);
+          console.log(datauri, "URI");
         } else {
           expect(await contractERC20.balanceOf(createdOfferAddress)).to.be.equal(180);
+          expect(await debitaLoanFactoryV2_Contract.NftID_to_LoanAddress(3)).to.equal(createdLoanAddress);
+
         }
   
         const loanData = await loanContract.getLoanData();
@@ -304,7 +310,7 @@ describe("Lock", function () {
       const balanceBefore = await contractERC20.balanceOf(lender.address);
       await loanContract.connect(lender).claimCollateralasLender();
       const balanceAfter = await contractERC20.balanceOf(lender.address);
-      expect(balanceAfter - (balanceBefore)).to.be.equal(200 - (Math.floor((200 * 2) / 100)));
+      expect(balanceAfter - (balanceBefore)).to.be.equal(200);
       }
     })
 });
