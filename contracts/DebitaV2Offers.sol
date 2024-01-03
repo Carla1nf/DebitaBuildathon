@@ -192,10 +192,11 @@ contract DebitaV2Offers is ReentrancyGuard {
         }
          m_offer.assetAmounts[0] -= amount;
 
-        if (m_offer.assetAmounts[0] == 0) {
-            m_offer.isActive = false;
-        }
-
+         // Active = false if there is no more assets
+         m_offer.isActive = !(m_offer.assetAmounts[0] == 0);
+        
+        
+        // transfer collateral to this contract before creating the loan & nfts
         transferAssets(
             msg.sender,
             address(this),
@@ -222,6 +223,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         );
         IDebitaFactoryV2(debitaFactoryLoansV2).setMappingIdToLoan(loanAddress, ids);
         isSenderALoan[loanAddress] = true;
+        
         // Send collateral to loanAddress
         transferAssets(
             address(this),
@@ -396,17 +398,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         address depositedAddress =  m_offer.assetAddresses[index];
         uint256 depositedAmount = m_offer.assetAmounts[index];
 
-        if (m_offer.isAssetNFT[index]) {
-            m_offer.valueOfVeNFT = veValue;
-            m_offer.nftData[1] = _newInterestRateForNFT;
-            
-        } else {
-          transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
-        }
-        
-         if(!m_offer.isAssetNFT[index]) {
-            transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
-        }
+        transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
+        transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
 
         m_offer.assetAmounts[0] = _newAssetAmounts[0];
         m_offer.assetAmounts[1] = _newAssetAmounts[1];
