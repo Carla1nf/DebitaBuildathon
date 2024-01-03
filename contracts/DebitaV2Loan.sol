@@ -460,9 +460,7 @@ contract DebitaV2Loan is ReentrancyGuard {
                     _tokens[i][j] == m_loan.interestAddress_Lending_NFT
                 ) {
                     amountToRest = claimableAmount;
-                } else if (_tokens[i][j] == m_loan.assetAddresses[1]) {
-                    amountToRest = m_loan.assetAmounts[1];
-                }
+                } 
 
                 uint amountToSend = ERC20(_tokens[i][j]).balanceOf(
                     address(this)

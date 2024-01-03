@@ -366,6 +366,12 @@ contract DebitaV2Offers is ReentrancyGuard {
         storage_OfferInfo = m_offer;
     }
 
+    function interactPerpetual(bool newType) public onlyOwner() nonReentrant {
+        OfferInfo memory m_offer = storage_OfferInfo;
+        m_offer.isPerpetual = newType;
+        storage_OfferInfo = m_offer;
+    } 
+
 
 
 // _newLoanData: [0] = interestRate, [1] = _paymentCount, [2] = _timelap

@@ -53,7 +53,8 @@ contract Ownerships is ERC721Enumerable {
       require(IDEBITA(DebitaContract).isSenderALoan(msg.sender), "Only loans can call this function.");
      _burn(tokenId);
     }
-
+     
+     // building basic svg image
      function buildImage(string memory _type, address loanAddress) internal view returns (string memory) {
 
         return Base64.encode(
