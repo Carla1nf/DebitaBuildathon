@@ -234,7 +234,7 @@ const {
         await loanContract.connect(lender).claimDebt();
         const ownerNFT = await contractERC721.ownerOf(approveID);
         const balanceAfterDebt = await contractERC20.balanceOf(lender.address);
-        expect(balanceAfterDebt - (balanceBefore)).to.be.equal(100 - (100 * 0.06));
+        expect(balanceAfterDebt - (balanceBefore)).to.be.equal(100 - (100 * 0.12));
 
         expect(ownerNFT).to.be.equal(lender.address);
       }

@@ -18,6 +18,11 @@ interface IDebitaOfferFactoryV2 {
     function debitaLoanFactoryV2() external returns (address);
 
     function isContractVeNFT(address _assetAddress) external returns (bool);
+
+    function emitOfferCanceled(bool _isLending) external;
+    function emitOfferFundsAgain(address owner, bool isOwnerLender) external;
+    function emitOfferNoFunds(bool isOwnerLender) external;
+    function emitAcceptedOffer(address lendingAddress, uint lendingAmount) external;
 }
 
 interface IDebitaFactoryV2 is IERC721Receiver {   
@@ -73,6 +78,7 @@ contract DebitaV2Offers is ReentrancyGuard {
     uint private totalCollateral;
     int128 private totalVeNFT;
     uint lastEditedBlock;
+    bool public canceled;
 
     mapping(address => bool) private isSenderALoan;
 
@@ -141,6 +147,7 @@ contract DebitaV2Offers is ReentrancyGuard {
         OfferInfo memory m_offer = storage_OfferInfo;
         m_offer.isPerpetual = false;
         m_offer.isActive = false;
+        canceled = true;
         storage_OfferInfo = m_offer;
         uint index = m_offer.isLending ? 0 : 1;
 
@@ -152,6 +159,8 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT[index],
             m_offer.nftData[0]
         );
+
+        IDebitaOfferFactoryV2(debitaFactoryOfferV2).emitOfferCanceled(m_offer.isLending);
     }
 
 
@@ -194,7 +203,7 @@ contract DebitaV2Offers is ReentrancyGuard {
 
          // Active = false if there is no more assets
          m_offer.isActive = !(m_offer.assetAmounts[0] == 0);
-        
+     
         
         // transfer collateral to this contract before creating the loan & nfts
         transferAssets(
@@ -243,6 +252,12 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT[0],
             m_offer.nftData[0]
         );
+
+         if(m_offer.assetAmounts[0] == 0) {
+          IDebitaOfferFactoryV2(debitaFactoryOfferV2).emitOfferNoFunds(m_offer.isLending);
+         }
+
+        IDebitaOfferFactoryV2(debitaFactoryOfferV2).emitAcceptedOffer(m_offer.assetAddresses[0], amount);
     }
 
     function acceptOfferAsLender(
@@ -323,6 +338,13 @@ contract DebitaV2Offers is ReentrancyGuard {
             m_offer.isAssetNFT[0],
             sendingNFTID
         );
+
+       if(m_offer.assetAmounts[0] == 0) {
+          IDebitaOfferFactoryV2(debitaFactoryOfferV2).emitOfferNoFunds(m_offer.isLending);
+         }
+    
+     IDebitaOfferFactoryV2(debitaFactoryOfferV2).emitAcceptedOffer(m_offer.assetAddresses[0], amount);
+
     }
 
     function insertAssets(uint assetAmount) public onlyLoans nonReentrant {
@@ -364,12 +386,15 @@ contract DebitaV2Offers is ReentrancyGuard {
         
         m_offer.isActive = true;
         storage_OfferInfo = m_offer;
+        IDebitaOfferFactoryV2(debitaFactoryOfferV2).emitOfferFundsAgain(owner, m_offer.isLending);
+
+       
     }
 
+
     function interactPerpetual(bool newType) public onlyOwner() nonReentrant {
-        OfferInfo memory m_offer = storage_OfferInfo;
-        m_offer.isPerpetual = newType;
-        storage_OfferInfo = m_offer;
+        require(!canceled, "Offer is canceled");
+        storage_OfferInfo.isPerpetual = newType;
     } 
 
 
@@ -381,7 +406,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         uint[3] calldata _newLoanData,
         int128 veValue,
         uint _newInterestRateForNFT
-    ) public onlyOwner() {
+    ) public  onlyOwner() {
+        require(!canceled, "Offer is canceled");
         OfferInfo memory m_offer = storage_OfferInfo;
         uint index = m_offer.isLending ? 0 : 1;
         lastEditedBlock = block.timestamp;
@@ -403,6 +429,7 @@ contract DebitaV2Offers is ReentrancyGuard {
       
         address depositedAddress =  m_offer.assetAddresses[index];
         uint256 depositedAmount = m_offer.assetAmounts[index];
+        
 
         transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
         transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
@@ -412,9 +439,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         m_offer.interestRate = uint16(_newLoanData[0]);
         m_offer.paymentCount = uint8(_newLoanData[1]);
         m_offer._timelap = uint32(_newLoanData[2]);
-
-      
-        m_offer.isActive = m_offer.assetAmounts[0] > 0;
+        m_offer.valueOfVeNFT = veValue;
+        m_offer.nftData[1] = _newInterestRateForNFT;
          
         storage_OfferInfo = m_offer;
         totalCollateral = _newAssetAmounts[1];

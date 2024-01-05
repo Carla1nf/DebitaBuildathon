@@ -6,10 +6,20 @@ import "./DebitaV2Offers.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 
 contract DebitaV2OfferFactory is ReentrancyGuard {
-    event OfferCreated(
+    event CreateOffer(
         address indexed owner,
         address indexed _add,
         bool indexed senderIsLender
+    );
+
+       event DeleteOffer(
+        address indexed _add,
+        bool indexed senderIsLender
+    );
+
+    event AcceptOffer(
+        address indexed lendingAddress,
+        uint indexed lendingAmount
     );
 
     address owner;
@@ -92,7 +102,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         );
 
         isSenderAnOffer[address(newOfferContract)] = true;
-        emit OfferCreated(msg.sender, address(newOfferContract), true);
+        emit CreateOffer(msg.sender, address(newOfferContract), loanBooleans[0]);
         return address(newOfferContract);
     }
 
@@ -114,6 +124,29 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
     function setLoanFactoryV2(address _loanFactory) external onlyOwner {
         debitaLoanFactoryV2 = _loanFactory;
     }
+
+    function emitOfferCanceled(bool isOwnerLender) external  {
+       require(isSenderAnOffer[msg.sender], "Not an offer");
+       emit DeleteOffer(msg.sender, isOwnerLender);
+
+    }
+
+    function emitOfferNoFunds(bool isOwnerLender) external {
+       require(isSenderAnOffer[msg.sender], "Not an offer");
+       emit DeleteOffer(msg.sender, isOwnerLender);
+    }
+
+    function emitOfferFundsAgain(address _owner, bool isOwnerLender) external {
+       require(isSenderAnOffer[msg.sender], "Not an offer");
+       emit CreateOffer(_owner, msg.sender, isOwnerLender);
+    }
+
+    function emitAcceptedOffer(address lendingAddress, uint lendingAmount) external {
+       require(isSenderAnOffer[msg.sender], "Not an offer");
+       emit AcceptOffer(lendingAddress, lendingAmount);
+    }
+
+
 
     function setVeNFT(address _veNFT) external onlyOwner {
         isContractVeNFT[_veNFT] = true;

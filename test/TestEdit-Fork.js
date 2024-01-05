@@ -54,15 +54,16 @@ const {
       const debitaLoanFactoryV2 = await DebitaV2Factory.deploy();
       const erc721 = await ethers.getContractFactory("ABIERC721");
       contractERC721 = await erc721.deploy();
+
       // Deploy Contracts & Accounts
       contractLoansV2 = await ethers.getContractFactory("DebitaV2Loan");
       const owners = await ethers.getContractFactory("Ownerships");
       ownerships = await owners.deploy();
       const factory = await ethers.getContractFactory("DebitaV2OfferFactory");
       contractFactoryV2 = await factory.deploy();
+
      // Connect both factories
      await debitaLoanFactoryV2.setDebitaOfferFactory(contractFactoryV2.target);
-
      await contractFactoryV2.setLoanFactoryV2(debitaLoanFactoryV2.target);
 
 

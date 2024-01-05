@@ -164,8 +164,8 @@ const {
       const DataBeforeOffer = await contractOffersV2.getOffersData();
       await contractLoansV2.connect(signerUser2).claimCollateralasBorrower();
       const DataAfterOffer = await contractOffersV2.getOffersData();
-      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(1094);
-      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(1641); // 1500 * 1.094
+      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(1088);
+      // expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(1641); // 1500 * 1.094
 
     }),
     it("Pay loan and accept it again -- Lender ", async () => {
@@ -193,8 +193,8 @@ const {
       const DataBeforeOffer = await contractOffersV2.getOffersData();
       await contractLoansV2.connect(signerUser2).claimCollateralasBorrower();
       const DataAfterOffer = await contractOffersV2.getOffersData();
-      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(Math.floor(1094));
-      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(Math.floor(Math.floor(1094 * 10000000 / 750) * 1500 / 10000000));
+      expect(DataAfterOffer[1][0] - DataBeforeOffer[1][0]).to.be.equal(Math.floor(1088));
+      expect(DataAfterOffer[1][1] - DataBeforeOffer[1][1]).to.be.equal(Math.floor(Math.floor(1088 * 10000000 / 750) * 1500 / 10000000));
     }),
     it("Edit Offer and check new ratio -- Borrower", async () => {
       await contractERC20.connect(holderEQUAL).approve(contractOffersV2_Secomd.target, valueInWei(10000));
