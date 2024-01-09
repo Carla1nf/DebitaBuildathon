@@ -30,6 +30,8 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
 
   
     address owner;
+    uint public feeOffer = 8;
+    uint public feeInterestLoan = 12;
     address private debitaOfferFactory;
     address private ownershipAddress;
 
@@ -106,16 +108,38 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
     }
 
     function setOwnershipAddress(address ownershipAdd) public onlyOwner {
+        require(ownershipAddress == address(0x0), "Already init");
         ownershipAddress = ownershipAdd;
     }
 
     function setDebitaOfferFactory(address offerFactory) public onlyOwner {
+        require(debitaOfferFactory == address(0x0), "Already init");
         debitaOfferFactory = offerFactory;
     }
+
+    function setFeeAddress(address _newAdd) public onlyOwner() {
+        feeAddress = _newAdd;
+    }
+    
+    //  _fee / 1000
+    function setOfferFee(uint _fee) public onlyOwner() {
+        require(15 >= _fee && _fee >= 5);
+        feeOffer = _fee;
+    }
+
+ //  _fee / 100
+    function setInterestFee_Loan(uint _fee) public onlyOwner() {
+        require(20 >= _fee && _fee <= 7);
+        feeInterestLoan = _fee;
+    }
+
+    /*  VIEW FUNCTIONS  */
 
     function getAddressById(uint id) public view returns (address) {
         return NftID_to_LoanAddress[id];
     }
+
+    
     
     function checkIfAddressIsveNFT(address contractAddress) public view returns (bool) {
         return IDebitaOfferFactory(debitaOfferFactory).isContractVeNFT(contractAddress);

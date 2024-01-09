@@ -249,7 +249,7 @@ describe("Lock", function () {
     it("Create Loan, Default it & Claim it -- as Lender & Borrower with $EQUAL  (Lending: ERC-20, Collateral: ERC-20)", async () => {
       const tx = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
         [equalAddress, equalAddress],
-        [100, 200],
+        [1000, 200],
         [false, false],
         10,
         [0,0],
@@ -262,7 +262,7 @@ describe("Lock", function () {
 
       const tx2 = await contractFactoryV2.connect(holderEQUAL).createOfferV2(
         [equalAddress, equalAddress],
-        [100, 200],
+        [1000, 200],
         [false, false],
         10,
         [0,0],
@@ -277,11 +277,13 @@ describe("Lock", function () {
       const receipt2 = await tx2.wait()
       const createdReceipt = [receipt, receipt2]
       let currentReceipt;
-
       for(let i = 0; i < 2; i++) {
         const borrower = i == 0 ? signerUser2 : holderEQUAL;
         const lender = i == 0 ? holderEQUAL : signerUser2;
         currentReceipt = createdReceipt[i];
+        const balanceBefore_Borrower = await contractERC20.balanceOf(borrower.address);
+        const before_balanceFeeAddress = await contractERC20.balanceOf(owner.address);
+
 
         const createdOfferAddress = currentReceipt.logs[1].args[1];
       const offerContract = await contractOffersV2.attach(createdOfferAddress);
@@ -291,16 +293,20 @@ describe("Lock", function () {
       await contractERC20.connect(lender).approve(offerContract.target, valueInWei(10000));
       let tx_Accept;
      if(i == 0) {
-      tx_Accept = await offerContract.connect(borrower).acceptOfferAsBorrower(100, 0);
+      tx_Accept = await offerContract.connect(borrower).acceptOfferAsBorrower(1000, 0);
      } else {
 
-      tx_Accept = await offerContract.connect(lender).acceptOfferAsLender(100, 0);
+      tx_Accept = await offerContract.connect(lender).acceptOfferAsLender(1000, 0);
      }
 
     
 
       const receipt_accept = await tx_Accept.wait();
-
+      
+      const balanceAfter_Borrower = await contractERC20.balanceOf(borrower.address);
+      await expect((balanceAfter_Borrower - balanceBefore_Borrower) + BigInt(i == 0 ? 200 : 0)).to.be.equal(BigInt(992))
+      const balanceFeeAddress = await contractERC20.balanceOf(owner.address);
+      await expect((balanceFeeAddress) - before_balanceFeeAddress).to.be.equal(BigInt(8))
       const createdLoanAddress = receipt_accept.logs[3].args[1];
       const loanContract = await contractLoansV2.attach(createdLoanAddress);
       await expect(loanContract.connect(lender).claimCollateralasLender()).to.be.reverted;

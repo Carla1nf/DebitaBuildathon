@@ -38,6 +38,8 @@ interface IOwnerships {
 interface IDebitaLoanFactory {
     function feeAddress() external returns (address);
 
+    function feeInterestLoan() external returns(uint);
+ 
     function checkIfAddressIsveNFT(
         address contractAddress
     ) external returns (bool);
@@ -65,7 +67,8 @@ interface voterContract {
     function reset(uint _tokenId) external;
 }
 
-contract DebitaV2Loan is ReentrancyGuard {
+    contract DebitaV2Loan is ReentrancyGuard {
+        
     event debtPaid(uint indexed paymentCount, uint indexed paymentPaid);
     event collateralClaimed(address indexed claimer);
 
@@ -89,7 +92,6 @@ contract DebitaV2Loan is ReentrancyGuard {
     address private ownershipContract;
     address private debitaLoanFactory;
     address public debitaOfferV2;
-    uint private constant interestFEE = 12;
     uint public claimableAmount;
 
     modifier onlyActive() {
@@ -154,6 +156,11 @@ contract DebitaV2Loan is ReentrancyGuard {
     -------- -------- -------- -------- -------- -------- -------- 
     
     */
+    
+     /**
+     * @dev pay next payment -- only for borrower
+     */
+        
     function payDebt() public nonReentrant onlyActive {
         LoanData memory loan = storage_loanInfo;
         IOwnerships ownerContract = IOwnerships(ownershipContract);
@@ -174,6 +181,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         }
 
         uint fee;
+        uint interestFEE = IDebitaLoanFactory(debitaLoanFactory).feeInterestLoan();
         if (loan.isAssetNFT[0]) {
             fee = (loan.nftData[2] * interestFEE) / 100;
             claimableAmount += loan.nftData[2] - fee;
@@ -221,7 +229,11 @@ contract DebitaV2Loan is ReentrancyGuard {
         emit debtPaid(loan.paymentCount, loan.paymentsPaid);
     }
      
-    // only if default
+     /**
+     * @dev claim collateral as lender -- only if it's defaulted 
+   
+     */
+        
     function claimCollateralasLender() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
@@ -253,7 +265,12 @@ contract DebitaV2Loan is ReentrancyGuard {
         emit collateralClaimed(msg.sender);
     }
 
-    // only after complete payment
+     /**
+     * @dev claim collateral as borrower  -- only if all payments are paid
+     
+     If it's perpetual, send tokens back to offer contract
+   
+     */
     function claimCollateralasBorrower() public nonReentrant onlyActive {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
@@ -351,7 +368,10 @@ contract DebitaV2Loan is ReentrancyGuard {
         emit collateralClaimed(msg.sender);
     }
     
-    // only by Lender -- Claiming Debt
+     /**
+     * @dev claim debt by lender -- only after payment
+   
+     */
     function claimDebt() public nonReentrant {
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
