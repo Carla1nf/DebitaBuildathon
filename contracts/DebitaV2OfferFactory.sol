@@ -100,7 +100,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             isAssetNFT[index],
             nftData[0]
         );
-
+        require(IERC20(assetAddresses[index]).balanceOf( address(newOfferContract)) == assetAmounts[index], "Not taxable tokens");
         isSenderAnOffer[address(newOfferContract)] = true;
         emit CreateOffer(msg.sender, address(newOfferContract), loanBooleans[0]);
         return address(newOfferContract);
@@ -145,7 +145,6 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
        require(isSenderAnOffer[msg.sender], "Not an offer");
        emit AcceptOffer(lendingAddress, lendingAmount);
     }
-
 
 
     function setVeNFT(address _veNFT) external onlyOwner {
