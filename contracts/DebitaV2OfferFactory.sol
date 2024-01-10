@@ -73,7 +73,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             _interestRate > 10000 ||
             (isAssetNFT[0] && _paymentCount > 1) ||
             (isAssetNFT[0] && assetAmounts[0] > 1) ||
-            (isAssetNFT[1] && assetAmounts[1] > 1) || 
+            (isAssetNFT[1] && assetAmounts[1] > 1) 
         ) {
             revert();
         }
