@@ -55,7 +55,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
     ) external nonReentrant returns (address) {
         if (
             _timelap < 1 days || _timelap > 365 days || assetAmounts[0] == 0 || assetAmounts[1] == 0
-                || _paymentCount > 10 || _paymentCount == 0 || _paymentCount > assetAmounts[0] || _interestRate > 10000
+                || _paymentCount > 10 || _paymentCount == 0 || _paymentCount > assetAmounts[0] || _interestRate > 50000
                 || (isAssetNFT[0] && _paymentCount > 1) || (isAssetNFT[0] && assetAmounts[0] > 1)
                 || (isAssetNFT[1] && assetAmounts[1] > 1)
         ) {
@@ -85,7 +85,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             nftData[0]
         );
         require(
-            IERC20(assetAddresses[index]).balanceOf(address(newOfferContract)) == assetAmounts[index],
+            IERC20(assetAddresses[index]).balanceOf(address(newOfferContract)) >= assetAmounts[index],
             "Not taxable tokens"
         );
         isSenderAnOffer[address(newOfferContract)] = true;

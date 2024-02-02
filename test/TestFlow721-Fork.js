@@ -121,7 +121,7 @@ const {
         1,
         86400,
         [false, false],
-        equalAddress
+        equalAddresse
       );
 
       await contractERC20.connect(signerUser2).approve(debitaLoanFactoryV2.target, valueInWei(10000));

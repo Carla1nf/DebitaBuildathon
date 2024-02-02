@@ -140,6 +140,7 @@ contract DebitaV2Offers is ReentrancyGuard {
     Cancel offer --> get Funds back & not be able to reactive it again.
      */
     function cancelOffer() external onlyOwner onlyActive nonReentrant {
+        
         OfferInfo memory m_offer = storage_OfferInfo;
         m_offer.isPerpetual = false;
         m_offer.isActive = false;
@@ -359,8 +360,8 @@ contract DebitaV2Offers is ReentrancyGuard {
 
     /**
      * @dev edit offer data
-     * @param _newAssetAmounts [0] = interestRate, [1] = _paymentCount, [2] = _timelap
-     * @param _newLoanData [0] = lendingAmount, [1] = collateralAmount
+     * @param _newAssetAmounts [0] = lendingAmount, [1] = collateralAmount
+     * @param _newLoanData      [0] = interestRate, [1] = _paymentCount, [2] = _timelaps
      * @param veValue new wanted locked value veNFT -- 0 if no veNFT
      * @param _newInterestAmount_NFT new interest amount for NFTs -- 0 if no NFT
      */
@@ -386,10 +387,16 @@ contract DebitaV2Offers is ReentrancyGuard {
 
         address depositedAddress = m_offer.assetAddresses[index];
         uint256 depositedAmount = m_offer.assetAmounts[index];
+        
+        bool isDepositedHigher = depositedAmount > _newAssetAmounts[index];
+        uint difference = isDepositedHigher ?  depositedAmount -  _newAssetAmounts[index] :  _newAssetAmounts[index] - depositedAmount; 
 
         if (depositedAmount != _newAssetAmounts[index]) {
-            transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
-            transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
+            if(isDepositedHigher) {
+            transferAssets(address(this), msg.sender, depositedAddress, difference, false, 0);
+            } else {
+            transferAssets(msg.sender, address(this), depositedAddress, difference, false, 0);
+            }
         }
 
         m_offer.assetAmounts[0] = _newAssetAmounts[0];
