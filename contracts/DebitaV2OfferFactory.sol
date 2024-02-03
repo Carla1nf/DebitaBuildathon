@@ -4,6 +4,8 @@ import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import "./DebitaV2Offers.sol";
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 
 contract DebitaV2OfferFactory is ReentrancyGuard {
     event CreateOffer(address indexed owner, address indexed _add, bool indexed senderIsLender);
@@ -104,7 +106,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         if (isNFT) {
             ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
-            require(IERC20(assetAddress).transferFrom(from, to, assetAmount), "Amount not sent");
+            SafeERC20.safeTransferFrom(IERC20(assetAddress), from, to, assetAmount);
         }
     }
 
