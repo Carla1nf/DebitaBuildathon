@@ -85,7 +85,7 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
             nftData[0]
         );
         require(
-            IERC20(assetAddresses[index]).balanceOf(address(newOfferContract)) == assetAmounts[index],
+            IERC20(assetAddresses[index]).balanceOf(address(newOfferContract)) >= assetAmounts[index],
             "Not taxable tokens"
         );
         isSenderAnOffer[address(newOfferContract)] = true;
