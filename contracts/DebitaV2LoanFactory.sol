@@ -110,7 +110,7 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
 
     //  _fee / 100
     function setInterestFee_Loan(uint256 _fee) public onlyOwner {
-        require(20 >= _fee && _fee <= 7);
+        require(20 >= _fee && _fee >= 7);
         feeInterestLoan = _fee;
     }
 
