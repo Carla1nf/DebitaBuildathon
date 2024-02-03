@@ -4,6 +4,7 @@ import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/utils/ERC721Holder.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 interface veSolid {
     struct LockedBalance {
@@ -444,9 +445,9 @@ contract DebitaV2Offers is ReentrancyGuard {
             ERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             if (from == address(this)) {
-                require(ERC20(assetAddress).transfer(to, assetAmount), "Amount not sent");
+            SafeERC20.safeTransfer(ERC20(assetAddress), to, assetAmount);
             } else {
-                require(ERC20(assetAddress).transferFrom(from, to, assetAmount), "Amount not sent");
+            SafeERC20.safeTransferFrom(ERC20(assetAddress),from, to, assetAmount);
             }
         }
     }
@@ -464,9 +465,8 @@ contract DebitaV2Offers is ReentrancyGuard {
         } else {
             address feeAddress = IDebitaLoanFactory(debitaFactoryLoansV2).feeAddress();
             uint256 fee = (assetAmount * IDebitaLoanFactory(debitaFactoryLoansV2).feeOffer()) / 1000;
-
-            require(ERC20(assetAddress).transfer(to, assetAmount - fee), "Amount not sent");
-            require(ERC20(assetAddress).transfer(feeAddress, fee), "Fee not sent");
+            SafeERC20.safeTransfer(ERC20(assetAddress), to, assetAmount - fee);
+            SafeERC20.safeTransfer(ERC20(assetAddress), feeAddress, fee);
         }
     }
 }
