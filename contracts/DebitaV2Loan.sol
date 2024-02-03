@@ -434,11 +434,12 @@ contract DebitaV2Loan is ReentrancyGuard{
             IERC721(assetAddress).transferFrom(from, to, nftID);
         } else {
             if (from == address(this)) {
-                require(ERC20(assetAddress).transfer(to, assetAmount), "Amount not sent");
+            SafeERC20.safeTransfer(ERC20(assetAddress), to, assetAmount);
             } else {
-                require(ERC20(assetAddress).transferFrom(from, to, assetAmount), "Amount not sent");
-            }
+            SafeERC20.safeTransferFrom(ERC20(assetAddress), from, to, assetAmount);
+
         }
+    }
     }
 
     function transferAssetHerewithFee(
@@ -448,9 +449,10 @@ contract DebitaV2Loan is ReentrancyGuard{
         uint256 fee,
         address feeAddress
     ) internal {
-        bool tx1 = ERC20(assetAddress).transferFrom(from, address(this), assetAmount);
-        bool tx2 = ERC20(assetAddress).transfer(feeAddress, fee);
-        require(tx1 && tx2, "Amount not sent");
+        SafeERC20.safeTransferFrom(ERC20(assetAddress), from, address(this), assetAmount);
+        SafeERC20.safeTransfer(ERC20(assetAddress), feeAddress, fee);
+
+  
     }
 
     function approveAssets(address to, address assetAddress, uint256 assetAmount, uint256 nftId, bool isNFT) internal {
