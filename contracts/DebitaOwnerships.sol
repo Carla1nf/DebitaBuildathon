@@ -17,7 +17,7 @@ contract Ownerships is ERC721Enumerable {
     address DebitaContract;
     bool private initialized;
 
-    constructor() ERC721("Debita Ownerships", "") {
+    constructor() ERC721("Debita Ownerships", "DEOW") {
         admin = msg.sender;
     }
 
