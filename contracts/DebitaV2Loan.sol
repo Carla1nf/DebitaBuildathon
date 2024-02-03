@@ -2,6 +2,8 @@ pragma solidity ^0.8.0;
 
 import "@openzeppelin/contracts/utils/ReentrancyGuard.sol";
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 interface IDebitaOffer {
@@ -56,7 +58,7 @@ interface voterContract {
     function reset(uint256 _tokenId) external;
 }
 
-contract DebitaV2Loan is ReentrancyGuard {
+contract DebitaV2Loan is ReentrancyGuard{
     event debtPaid(uint256 indexed paymentCount, uint256 indexed paymentPaid);
     event collateralClaimed(address indexed claimer);
 
@@ -455,7 +457,7 @@ contract DebitaV2Loan is ReentrancyGuard {
         if (isNFT) {
             IERC721(assetAddress).approve(to, nftId);
         } else {
-            ERC20(assetAddress).approve(to, assetAmount);
+            SafeERC20.forceApprove(ERC20(assetAddress), to, assetAmount);
         }
     }
 
