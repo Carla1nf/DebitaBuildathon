@@ -388,16 +388,10 @@ contract DebitaV2Offers is ReentrancyGuard {
         address depositedAddress = m_offer.assetAddresses[index];
         uint256 depositedAmount = m_offer.assetAmounts[index];
         
-        bool isDepositedHigher = depositedAmount > _newAssetAmounts[index];
-        uint difference = isDepositedHigher ?  depositedAmount -  _newAssetAmounts[index] :  _newAssetAmounts[index] - depositedAmount; 
+       
 
-        if (depositedAmount != _newAssetAmounts[index]) {
-            if(isDepositedHigher) {
-            transferAssets(address(this), msg.sender, depositedAddress, difference, false, 0);
-            } else {
-            transferAssets(msg.sender, address(this), depositedAddress, difference, false, 0);
-            }
-        }
+            transferAssets(address(this), msg.sender, depositedAddress, depositedAmount, false, 0);
+            transferAssets(msg.sender, address(this), depositedAddress, _newAssetAmounts[index], false, 0);
 
         m_offer.assetAmounts[0] = _newAssetAmounts[0];
         m_offer.assetAmounts[1] = _newAssetAmounts[1];
