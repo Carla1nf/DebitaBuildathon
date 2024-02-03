@@ -137,4 +137,8 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
     function setVeNFT(address _veNFT) external onlyOwner {
         isContractVeNFT[_veNFT] = true;
     }
+
+      function transferOwnership(address _newAddress) public onlyOwner() {
+        owner = _newAddress;
+    }
 }

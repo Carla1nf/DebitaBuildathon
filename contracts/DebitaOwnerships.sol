@@ -97,4 +97,8 @@ contract Ownerships is ERC721Enumerable {
         );
         return data;
     }
+
+    function transferOwnership(address _newAddress) public onlyOwner() {
+        admin = _newAddress;
+    }
 }
