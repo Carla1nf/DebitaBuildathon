@@ -78,7 +78,7 @@ contract DebitaV2Loan is ReentrancyGuard{
         bool executed; // if collateral claimed
     }
 
-    LoanData storage_loanInfo;
+    LoanData private storage_loanInfo;
     address private ownershipContract;
     address private debitaLoanFactory;
     address public debitaOfferV2;

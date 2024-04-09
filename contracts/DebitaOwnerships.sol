@@ -12,6 +12,7 @@ interface IDEBITA {
 }
 
 contract Ownerships is ERC721Enumerable {
+    
     uint256 id = 0;
     address admin;
     address DebitaContract;
