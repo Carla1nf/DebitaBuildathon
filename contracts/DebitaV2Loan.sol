@@ -6,6 +6,7 @@ import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import "@openzeppelin/contracts/token/ERC721/IERC721.sol";
 
 interface IDebitaOffer {
+    
     struct OfferInfo {
         address[2] assetAddresses;
         uint256[2] assetAmounts;
@@ -71,7 +72,7 @@ contract DebitaV2Loan is ReentrancyGuard{
         address interestAddress_Lending_NFT; // only if the lending is an NFT
         uint8 paymentCount;
         uint8 paymentsPaid;
-        uint256 paymentAmount;
+        uint256 paymentAmount; 
         uint256 deadline; // final deadline
         uint256 deadlineNext; // next Deadline
         bool executed; // if collateral claimed
@@ -214,6 +215,15 @@ contract DebitaV2Loan is ReentrancyGuard{
             revert();
         }
 
+        bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+
+        if (isContractValid) {
+            address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
+            storage_loanInfo.executed = true;
+            voterContract voter = voterContract(voterAddress);
+            voter.reset(m_loan.nftData[1]);
+        }
+
         _ownerContract.burn(m_loan.IDS[0]);
         // Mark the loan as executed
         storage_loanInfo.executed = true;
@@ -238,6 +248,7 @@ contract DebitaV2Loan is ReentrancyGuard{
         LoanData memory m_loan = storage_loanInfo;
         IOwnerships _ownerContract = IOwnerships(ownershipContract);
         bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+        
         // 1. Check if the sender is the owner of the borrowers's NFT
         // 2. Check if the paymenyCount is different than the paids
         // 3. Check if the loan has already been executed
@@ -258,8 +269,12 @@ contract DebitaV2Loan is ReentrancyGuard{
         IDebitaOffer.OfferInfo memory offerInfo = IDebitaOffer(debitaOfferV2).getOffersData();
 
         address ownerOfOffer = IDebitaOffer(debitaOfferV2).owner();
-
-        address currentOwner = _ownerContract.ownerOf(m_loan.IDS[0]);
+    
+        address currentOwner;
+        
+        try _ownerContract.ownerOf(m_loan.IDS[0]) returns (address _lenderOwner) {
+         currentOwner = _lenderOwner;
+        }  catch {}
 
         bool isPerpetual = offerInfo.isPerpetual;
 

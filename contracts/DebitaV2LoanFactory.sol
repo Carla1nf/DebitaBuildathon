@@ -123,4 +123,8 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
     function checkIfAddressIsveNFT(address contractAddress) public view returns (bool) {
         return IDebitaOfferFactory(debitaOfferFactory).isContractVeNFT(contractAddress);
     }
+
+    function transferOwnership(address _newAddress) public onlyOwner() {
+        owner = _newAddress;
+    }
 }

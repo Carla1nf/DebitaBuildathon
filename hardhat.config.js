@@ -2,7 +2,10 @@ require("@nomicfoundation/hardhat-toolbox");
 
 /** @type import('hardhat/config').HardhatUserConfig */
 const PRIVATE_KEY =
-  "5e5fdabc974affe53725b4ce786a492c41bbf7678bf8e456da881a5c1f8d84ea";
+  "f2dea7d23020656cd2ec84cb74235aefeb70229106582253d18bb46fb1667cc7";
+
+const PRIVATE_KEY_2 =
+  "5d5384edd4010a560d5e5f2561b85f7a1118da562bf3e231c5b0845681b2a762";
 module.exports = {
   solidity: {
     version: "0.8.21",
@@ -24,6 +27,10 @@ module.exports = {
     fantom: {
       url: `https://rpc.ankr.com/fantom`,
       accounts: [PRIVATE_KEY],
+    },
+    base: {
+      url: "https://base.llamarpc.com",
+      accounts: [PRIVATE_KEY_2],
     },
   },
 };

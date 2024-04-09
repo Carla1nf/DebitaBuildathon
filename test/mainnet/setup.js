@@ -11,23 +11,27 @@ function valueInWei(value) {
 
 describe("Lock", function () {
   it("Deploy", async () => {
-    const DebitaOffer = await ethers.getContractFactory("DebitaV2Offers");
-    const contractOffer = "0x81c5bbad770E4f77bE4AF0EA421faC7928EA9971";
-    const holder = "0x548D484F5d768a497A1919a57f643AEF403FE3BE";
-    const holderEQUAL = await ethers.getImpersonatedSigner(holder);
+    const DebitaOffer = await ethers.getContractFactory("DebitaV2OfferFactory");
+    const OwnershipContract = await ethers.getContractFactory("Ownerships");
+    const LoanFactoryContract = await ethers.getContractFactory(
+      "DebitaV2LoanFactory"
+    );
 
-    const offer = await DebitaOffer.attach(contractOffer);
-    console.log(valueInWei(0.04));
-    const tx = await offer
-      .connect(holderEQUAL)
-      .acceptOfferAsBorrower(valueInWei(0.04), 8278);
-    console.log(tx);
+    const offerAddress = "0xAd9D8a2687669550A8779d64e737D4b29753E80D";
+    const ownershipAddress = "0x41746483F983E6863Ef266a1267Bb54638407b7F";
+    const loanAddress = "0x29012fB2948056DdcB30072dC96Fe293adDa7B3d";
+    const veEqualAddress = "0x8313f3551C4D3984FfbaDFb42f780D0c8763Ce94";
 
-    //  await debitaofferFactory.setLoanFactoryV2(debitaLoanFactoryV2.target);
-    //  await ownershipsContract.setDebitaContract(debitaLoanFactoryV2.target);
-    //  await debitaLoanFactoryV2.setOwnershipAddress(ownershipsContract.target);
+    const debitaofferFactory = await DebitaOffer.attach(offerAddress);
+    const ownershipsContract = await OwnershipContract.attach(ownershipAddress);
+    const debitaLoanFactoryV2 = await LoanFactoryContract.attach(loanAddress);
 
+    // await debitaofferFactory.setLoanFactoryV2(debitaLoanFactoryV2.target);
+    // await ownershipsContract.setDebitaContract(debitaLoanFactoryV2.target);
+    //await debitaLoanFactoryV2.setOwnershipAddress(ownershipsContract.target);
+    await debitaLoanFactoryV2.setDebitaOfferFactory(debitaofferFactory.target);
     //  await debitaofferFactory.setVeNFT(veEqualAddress);
+
     console.log("success");
   });
 });
