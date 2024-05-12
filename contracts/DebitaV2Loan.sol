@@ -36,6 +36,11 @@ interface IOwnerships {
     function burn(uint256 tokenId) external;
 }
 
+interface RewardsDistributor {
+    function claim(uint256 tokenId) external returns (uint256);
+   
+}
+
 interface IDebitaLoanFactory {
     function feeAddress() external returns (address);
 
@@ -43,11 +48,21 @@ interface IDebitaLoanFactory {
 
     function checkIfAddressIsveNFT(address contractAddress) external returns (bool);
 }
+interface IVotingEscrow {
+    struct LockedBalance {
+        int128 amount;
+        uint256 end;
+        bool isPermanent;
+    }
+}
 
-interface veNFT {
+interface veNFT is IVotingEscrow {
     function voter() external returns (address);
-
+    function increaseUnlockTime(uint256 tokenId, uint256 _lock_duration) external;
     function increase_unlock_time(uint256 tokenId, uint256 _lock_duration) external;
+    function distributor() external returns (address);
+    function locked(uint id) external returns (LockedBalance memory);
+
 }
 
 interface voterContract {
@@ -57,6 +72,8 @@ interface voterContract {
 
     function reset(uint256 _tokenId) external;
 }
+
+
 
 contract DebitaV2Loan is ReentrancyGuard{
     event debtPaid(uint256 indexed paymentCount, uint256 indexed paymentPaid);
@@ -427,15 +444,35 @@ contract DebitaV2Loan is ReentrancyGuard{
         require(voterAddress != address(0), "Voter address is 0");
         require(msg.sender == _ownerContract.ownerOf(m_loan.IDS[1]), "Msg Sender is not the borrower");
 
-        veNFT(m_loan.assetAddresses[1]).increase_unlock_time(m_loan.nftData[1], duration);
+        veNFT(m_loan.assetAddresses[1]).increaseUnlockTime(m_loan.nftData[1], duration);
+        // aerodrome --> increaseUnlockTime function
+        // equalizer --> increase_unlock_time
+    }
+
+    function claimRewards() public onlyActive() {
+        LoanData memory m_loan = storage_loanInfo;
+        IOwnerships _ownerContract = IOwnerships(ownershipContract);
+        address voterAddress = getVoterContract_veNFT(m_loan.assetAddresses[1]);
+        bool isContractValid = IDebitaLoanFactory(debitaLoanFactory).checkIfAddressIsveNFT(m_loan.assetAddresses[1]);
+        uint256 _timestamp = block.timestamp;
+        IVotingEscrow.LockedBalance memory _locked = veNFT(m_loan.assetAddresses[1]).locked(m_loan.nftData[1]);
+
+        require(isContractValid, "Contract is not a veNFT");
+        require(_timestamp < _locked.end || _locked.isPermanent, "Locked balance is over");
+        require(voterAddress != address(0), "Voter address is 0");
+        require(msg.sender == _ownerContract.ownerOf(m_loan.IDS[1]), "Msg Sender is not the borrower");
+
+        address distributor = veNFT(m_loan.assetAddresses[1]).distributor();
+        RewardsDistributor(distributor).claim(m_loan.nftData[1]);
+
     }
 
     /* 
     -------- -------- -------- -------- -------- -------- -------- 
            INTERNAL FUNCTIONS
     -------- -------- -------- -------- -------- -------- -------- 
-    
     */
+    
     function transferAssets(
         address from,
         address to,
