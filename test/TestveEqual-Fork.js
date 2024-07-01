@@ -31,17 +31,6 @@ describe("Lock", function () {
   let veEqualID;
   let veEqualID_smallAmount;
 
-  function checkData(receipt, indexs, values) {
-    for (let i = 0; i < indexs.length; i++) {
-      if (typeof receipt[indexs[i]] == "object") {
-        expect(receipt[indexs[i]][0]).to.be.equal(values[i][0]);
-        expect(receipt[indexs[i]][1]).to.be.equal(values[i][1]);
-      } else {
-        expect(receipt[indexs[i]]).to.be.equal(values[i]);
-      }
-    }
-  }
-
   this.beforeAll(async () => {
     const signers = await ethers.getSigners();
     owner = signers[0];

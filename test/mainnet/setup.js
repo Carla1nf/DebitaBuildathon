@@ -17,20 +17,20 @@ describe("Lock", function () {
       "DebitaV2LoanFactory"
     );
 
-    const offerAddress = "0xAd9D8a2687669550A8779d64e737D4b29753E80D";
-    const ownershipAddress = "0x41746483F983E6863Ef266a1267Bb54638407b7F";
-    const loanAddress = "0x29012fB2948056DdcB30072dC96Fe293adDa7B3d";
-    const veEqualAddress = "0x8313f3551C4D3984FfbaDFb42f780D0c8763Ce94";
+    const offerAddress = "0xBA7F80cC18136a8E777348dC047Ef7c167bf4194"; // d
+    const ownershipAddress = "0xCd1A78889eCE0992d0b109cF84c2A7f7D09D3B67"; // d
+    const loanAddress = "0x56f93b17b32dD0f36aE8A21C235B2d361B35F755"; // d
+    const veAeroAddress = "0xeBf418Fe2512e7E6bd9b87a8F0f294aCDC67e6B4";
 
     const debitaofferFactory = await DebitaOffer.attach(offerAddress);
     const ownershipsContract = await OwnershipContract.attach(ownershipAddress);
     const debitaLoanFactoryV2 = await LoanFactoryContract.attach(loanAddress);
 
-    // await debitaofferFactory.setLoanFactoryV2(debitaLoanFactoryV2.target);
-    // await ownershipsContract.setDebitaContract(debitaLoanFactoryV2.target);
+    //await debitaofferFactory.setLoanFactoryV2(debitaLoanFactoryV2.target);
+    //await ownershipsContract.setDebitaContract(debitaLoanFactoryV2.target);
     //await debitaLoanFactoryV2.setOwnershipAddress(ownershipsContract.target);
-    await debitaLoanFactoryV2.setDebitaOfferFactory(debitaofferFactory.target);
-    //  await debitaofferFactory.setVeNFT(veEqualAddress);
+    //await debitaLoanFactoryV2.setDebitaOfferFactory(debitaofferFactory.target);
+    await debitaofferFactory.setVeNFT(veAeroAddress);
 
     console.log("success");
   });

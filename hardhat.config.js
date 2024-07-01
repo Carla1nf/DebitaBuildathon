@@ -4,12 +4,13 @@ require("@nomicfoundation/hardhat-toolbox");
 const PRIVATE_KEY =
   "f2dea7d23020656cd2ec84cb74235aefeb70229106582253d18bb46fb1667cc7";
 
-const PRIVATE_KEY_2 =
-  "5d5384edd4010a560d5e5f2561b85f7a1118da562bf3e231c5b0845681b2a762";
+const PRIVATE_KEY2 = "0x00";
+
 module.exports = {
   solidity: {
     version: "0.8.21",
     settings: {
+      viaIR: true,
       optimizer: {
         enabled: true,
         runs: 1000, // Adjust the number of runs as per your requirements
@@ -29,8 +30,8 @@ module.exports = {
       accounts: [PRIVATE_KEY],
     },
     base: {
-      url: "https://base.llamarpc.com",
-      accounts: [PRIVATE_KEY_2],
+      url: "https://mainnet.base.org",
+      accounts: [PRIVATE_KEY],
     },
   },
 };

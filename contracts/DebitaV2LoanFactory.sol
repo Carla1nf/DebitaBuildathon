@@ -12,6 +12,7 @@ interface IDebitaOfferFactory {
 }
 
 contract DebitaV2LoanFactory is ReentrancyGuard {
+    event updatedLoan(address indexed loanAddress, string _type);
     event LoanCreated(
         address indexed lendingAddress, address indexed loanAddress, uint256 lenderId, uint256 borrowerId
     );
@@ -37,6 +38,12 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
         require(
             IDebitaOfferFactory(debitaOfferFactory).isSenderAnOffer(msg.sender), "Only offers can call this function."
         );
+        _;
+    }
+
+
+    modifier onlyLoans() {
+        require(isSenderALoan[msg.sender], "Only loans");
         _;
     }
 
@@ -123,8 +130,17 @@ contract DebitaV2LoanFactory is ReentrancyGuard {
     function checkIfAddressIsveNFT(address contractAddress) public view returns (bool) {
         return IDebitaOfferFactory(debitaOfferFactory).isContractVeNFT(contractAddress);
     }
-
+     
     function transferOwnership(address _newAddress) public onlyOwner() {
         owner = _newAddress;
     }
+
+
+    // rewardsClaimed, collateralClaimed
+    function emitUpdated(string memory _type) public onlyLoans {
+        emit updatedLoan(msg.sender, _type);
+    }
+
+    
+    
 }

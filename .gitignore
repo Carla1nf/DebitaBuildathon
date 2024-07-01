@@ -1,6 +1,6 @@
 node_modules
 .env
-
+.hardhat.config.js
 # Hardhat files
 /cache
 /artifacts
@@ -12,3 +12,4 @@ node_modules
 # solidity-coverage files
 /coverage
 /coverage.json
+

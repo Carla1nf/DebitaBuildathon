@@ -12,7 +12,9 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
 
     event DeleteOffer(address indexed _add, bool indexed senderIsLender);
 
-    event AcceptOffer(address indexed lendingAddress, uint256 indexed lendingAmount);
+    event AcceptOffer(address indexed add, address indexed lendingAddress, uint256 indexed lendingAmount);
+
+    event UpdatedOffer(address indexed add);
 
     address owner;
     address public debitaLoanFactoryV2;
@@ -131,8 +133,15 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
 
     function emitAcceptedOffer(address lendingAddress, uint256 lendingAmount) external {
         require(isSenderAnOffer[msg.sender], "Not an offer");
-        emit AcceptOffer(lendingAddress, lendingAmount);
+        emit AcceptOffer(msg.sender, lendingAddress, lendingAmount);
     }
+
+    function emitUpdateOffer() external {
+        require(isSenderAnOffer[msg.sender], "Not an offer");
+        emit UpdatedOffer(msg.sender);
+
+    }
+    
 
     function setVeNFT(address _veNFT) external onlyOwner {
         isContractVeNFT[_veNFT] = true;
@@ -142,3 +151,9 @@ contract DebitaV2OfferFactory is ReentrancyGuard {
         owner = _newAddress;
     }
 }
+
+
+/* 
+
+AcceptOffer se le agrega _add en el index 0
+*/
